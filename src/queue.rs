@@ -24,16 +24,21 @@ pub fn start_queue(running: std::sync::Arc<AtomicBool>) -> io::Result<()> {
 
 /// 处理数据包
 fn handle_packet(data: &[u8]) -> Verdict {
+    //println!("Received packet with length: {}", data.len());
     match Ipv6Packet::new(data) {
         Some(ipv6_packet) => {
-            if let Some(icmpv6_packet) = Icmpv6Packet::new(ipv6_packet.payload()) {
-                if icmpv6_packet.get_icmpv6_type() == RouterAdvert {
-                    println!("Dropped ICMPv6 Router Advertisement.");
-                    return Verdict::Drop;
+            match Icmpv6Packet::new(ipv6_packet.payload()) {
+                Some(icmpv6_packet) => {
+                    if icmpv6_packet.get_icmpv6_type() == RouterAdvert {
+                        println!("Received ICMPv6 Router Advertisement!");
+                        Verdict::Drop
+                    } else {
+                        Verdict::Accept
+                    }
                 }
+                None => Verdict::Accept,
             }
         }
-        None => {}
+        None => Verdict::Accept,
     }
-    Verdict::Accept
 }
