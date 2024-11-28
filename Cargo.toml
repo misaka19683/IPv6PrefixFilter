@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ctrlc = "3.4.5"
 nfq = "0.2.5"
 pnet = "0.35.0"
