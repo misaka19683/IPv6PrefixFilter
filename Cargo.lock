@@ -12,6 +12,8 @@ dependencies = [
  "nfq",
  "nftables",
  "pnet",
+ "pnet_macros",
+ "pnet_macros_support",
 ]
 
 [[package]]
