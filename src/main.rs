@@ -1,32 +1,37 @@
 mod nft;
 mod queue;
-
+//mod nft_old;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use log::{info, error, warn}; // 导入 log 宏
+use env_logger; // 导入 env_logger
 
 fn main() {
+    // 初始化日志记录
+    env_logger::init();
+
     // 设置退出信号捕获
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
     let r2 = running.clone(); // 克隆 running 用于队列线程
     // 捕获 Ctrl+C 信号以触发清理
     ctrlc::set_handler(move || {
-        println!("Received Ctrl+C, exiting...");
+        info!("Received Ctrl+C, exiting..."); // 使用日志替代 println!
         r.store(false, Ordering::SeqCst);
     })
     .expect("Error setting Ctrl+C handler");
 
     // 初始化 nftables
-    println!("Setting up nftables...");
-    nft::setup_nftables();
+    info!("Setting up nftables..."); // 使用日志替代 println!
+    nft::setup_nftables().expect("Failed to set up nftables");
 
     // 启动队列监听器
-    println!("Starting NFQUEUE...");
+    info!("Starting NFQUEUE..."); // 使用日志替代 println!
     let queue_thread = thread::spawn(move || {
         if let Err(e) = queue::start_queue(r2.clone()) {
-            eprintln!("Error in queue: {}", e);
+            error!("Error in queue: {}", e); // 使用日志替代 eprintln!
         }
     });
 
@@ -36,13 +41,13 @@ fn main() {
     }
 
     // 清理 nftables 规则
-    println!("Cleaning up nftables...");
-    nft::cleanup_nftables();
+    info!("Cleaning up nftables..."); // 使用日志替代 println!
+    nft::delete_nftables().expect("Failed to delete nftables");
 
     // 等待队列线程结束
     if let Err(e) = queue_thread.join() {
-        eprintln!("Error waiting for queue thread: {:?}", e);
+        error!("Error waiting for queue thread: {:?}", e); // 使用日志替代 eprintln!
     }
 
-    println!("Program exited cleanly.");
+    info!("Program exited cleanly."); // 使用日志替代 println!
 }
