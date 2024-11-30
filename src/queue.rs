@@ -7,7 +7,7 @@ use pnet::packet::icmpv6::Icmpv6Types::RouterAdvert;
 //use std::sync::atomic::{AtomicBool, Ordering};
 //use std::io::Result;
 
-use crate::order_parser::get_prefix;
+// use crate::order_parser::get_prefix;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use crate::utils::ipv6_addr_u8_to_string;
 
@@ -57,7 +57,8 @@ pub fn end_queue(queue: &mut Queue,queue_num: u16) -> std::io::Result<()> {
 
 /// 处理数据包
 fn handle_packet(data: &[u8]) -> Verdict {
-    let ipv6_prefix = get_prefix();
+    // let ipv6_prefix = get_prefix();
+    let ipv6_prefix = [];
     let ipv6_prefix = &ipv6_prefix;
     let ipv6_prefix_str = ipv6_addr_u8_to_string(ipv6_prefix);
     debug!("IPv6 Prefix get from input: {}", ipv6_prefix_str);

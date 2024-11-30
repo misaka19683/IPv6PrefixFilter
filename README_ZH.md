@@ -37,6 +37,7 @@ Commands:
     version:    Print version information.
 Options:
     -p, --prefix            Specify the allowed IPv6 prefixes. Multiple prefixes can be allowed by repeating the `-p` option.
+    -i, --interface         Specify the interface.
     -b, --blacklist-mode    Enable blacklist mode. Prefixes specified with `-p` will be blocked.
     -v, --verbose           Display detailed runtime information.
     -d, --daemon            Run the program in the background as a daemon.
