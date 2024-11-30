@@ -1,8 +1,14 @@
+use log::info;
 use nfq::{Queue, Verdict};
+use nftables::expr::PayloadField;
 use pnet::packet::{Packet, icmpv6::Icmpv6Packet, ipv6::Ipv6Packet};
+use pnet::packet::icmpv6::ndp::RouterAdvertPacket;
+use pnet::packet::icmpv6::ndp::NdpOptionTypes::PrefixInformation;
 use pnet::packet::icmpv6::Icmpv6Types::RouterAdvert;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::io;
+
+use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 
 /// 启动队列监听器
 pub fn start_queue(running: std::sync::Arc<AtomicBool>) -> io::Result<()> {
@@ -28,17 +34,36 @@ fn handle_packet(data: &[u8]) -> Verdict {
     match Ipv6Packet::new(data) {
         Some(ipv6_packet) => {
             match Icmpv6Packet::new(ipv6_packet.payload()) {
-                Some(icmpv6_packet) => {
-                    if icmpv6_packet.get_icmpv6_type() == RouterAdvert {
-                        println!("Received ICMPv6 Router Advertisement!");
-                        Verdict::Drop
+                Some(icmp6_packet) => {
+                    if icmp6_packet.get_icmpv6_type() == RouterAdvert {
+                        info!("Received ICMPv6 Router Advertisement!");
+                        let ra_packet = RouterAdvertPacket::new(icmp6_packet.packet()).unwrap();
+                        for op in ra_packet.get_options() {
+                            match op.option_type {
+                                PrefixInformation => {
+                                    match PrefixInformationPacket::new(&op.to_bytes()) {
+                                        Some(pfi) => {
+                                            todo!();
+                                            if pfi.payload() != "given ipv6 prefix".as_bytes() {
+                                                return Verdict::Accept;
+                                            } else {
+                                                return Verdict::Drop;
+                                            }
+                                        },
+                                        None => {return Verdict::Accept;}
+                                    }
+                                },
+                                _ => {return Verdict::Accept;}
+                            }
+                        }
+                        return Verdict::Accept;
                     } else {
-                        Verdict::Accept
+                        return Verdict::Accept;
                     }
                 }
-                None => Verdict::Accept,
+                None => {return Verdict::Accept;},
             }
         }
-        None => Verdict::Accept,
+        None => {return Verdict::Accept;},
     }
 }
