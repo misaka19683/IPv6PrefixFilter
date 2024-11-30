@@ -1,22 +1,16 @@
-// use clap::Parser;
+use clap::Parser;
+use std::net::Ipv6Addr;
 
-// /// Simple program to greet a person
-// #[derive(Parser, Debug)]
-// #[command(version, about, long_about = None)]
-// struct Args {
-//     /// Name of the person to greet
-//     #[arg(short, long)]
-//     name: String,
+#[derive(Parser, Debug)]
+#[command(version,about,long_about=None)]
 
-//     /// Number of times to greet
-//     #[arg(short, long, default_value_t = 1)]
-//     count: u8,
-// }
+struct Args {
+    #[arg(short='p', long, default_value = "")]
+    ipv6_prefix: Ipv6Addr,
 
-// fn main() {
-//     let args = Args::parse();
-
-//     for _ in 0..args.count {
-//         println!("Hello {}!", args.name);
-//     }
-// }#这是一个clap的示例.
+}
+pub fn get_prefix() -> [u8; 16] {
+    let args=Args::parse();
+    let ipv6_prefix = args.ipv6_prefix.octets();
+    return ipv6_prefix;
+}

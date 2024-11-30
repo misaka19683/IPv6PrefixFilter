@@ -7,6 +7,7 @@ use pnet::packet::icmpv6::ndp::NdpOptionTypes::PrefixInformation;
 use pnet::packet::icmpv6::Icmpv6Types::RouterAdvert;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::io;
+use crate::order_parser::get_prefix;
 
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 
@@ -29,7 +30,9 @@ pub fn start_queue(running: std::sync::Arc<AtomicBool>) -> io::Result<()> {
 }
 
 /// 处理数据包
-fn handle_packet(data: &[u8]) -> Verdict {
+fn handle_packet(data: &[u8],) -> Verdict {
+    let ipv6_prefix = get_prefix();
+    let ipv6_prefix = &ipv6_prefix;
     //println!("Received packet with length: {}", data.len());
     match Ipv6Packet::new(data) {
         Some(ipv6_packet) => {
@@ -43,8 +46,7 @@ fn handle_packet(data: &[u8]) -> Verdict {
                                 PrefixInformation => {
                                     match PrefixInformationPacket::new(&op.to_bytes()) {
                                         Some(pfi) => {
-                                            todo!();
-                                            if pfi.payload() != "given ipv6 prefix".as_bytes() {
+                                            if pfi.payload() == ipv6_prefix {
                                                 return Verdict::Accept;
                                             } else {
                                                 return Verdict::Drop;
