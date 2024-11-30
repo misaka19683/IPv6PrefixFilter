@@ -4,33 +4,55 @@ use pnet::packet::{Packet, icmpv6::Icmpv6Packet, ipv6::Ipv6Packet};
 use pnet::packet::icmpv6::ndp::RouterAdvertPacket;
 use pnet::packet::icmpv6::ndp::NdpOptionTypes::PrefixInformation;
 use pnet::packet::icmpv6::Icmpv6Types::RouterAdvert;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::io;
+//use std::sync::atomic::{AtomicBool, Ordering};
+//use std::io::Result;
 
 use crate::order_parser::get_prefix;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use crate::utils::ipv6_addr_u8_to_string;
 
 /// 启动队列监听器
-pub fn start_queue(running: std::sync::Arc<AtomicBool>) -> io::Result<()> {
-    debug!("start_queue function!");
+pub fn start_queue(queue_num: u16) -> std::io::Result<Queue> {
     let mut queue = Queue::open()?; // 打开 NFQUEUE
-    debug!("NFQUEUE opened");
-    queue.bind(0)?; // 绑定到队列 0
-    debug!("Binded to the queue number 0.");
+    queue.bind(queue_num)?; // 绑定到队列 0
+    queue.set_fail_open(0, false)?; // 队列满时拒绝数据包
+    Ok(queue)
+}
 
-    while running.load(Ordering::SeqCst) {
-        if let Ok(mut msg) = queue.recv() {
-            debug!("Received something from queue.");
-            let data = msg.get_payload();
-            let verdict = handle_packet(data);
-            msg.set_verdict(verdict);
-            queue.verdict(msg)?;
-        }
+
+// pub fn loop_queue(running: std::sync::Arc<AtomicBool>) -> io::Result<()> {
+
+//     while running.load(Ordering::SeqCst) {
+//         while running.load(Ordering::SeqCst) {
+//             if let Ok(mut msg) = queue.recv() {
+//                 let data = msg.get_payload();
+//                 let verdict = handle_packet(data);
+//                 msg.set_verdict(verdict);
+//                 queue.verdict(msg)?;
+//             }
+//         }
+    
+//         Ok(())
+//     }
+
+//     Ok(())
+// }
+pub fn process_queue(queue: &mut Queue) -> std::io::Result<()> {
+    while let Ok(mut msg) = queue.recv() {
+        let data = msg.get_payload();
+        let verdict = handle_packet(data);
+        msg.set_verdict(verdict);
+        queue.verdict(msg)?;
     }
-
-    println!("Queue stopped.");
     Ok(())
+}
+
+// 清理队列
+pub fn end_queue(queue: &mut Queue,queue_num: u16) -> std::io::Result<()> {
+    queue.unbind(queue_num)?;
+    println!("Queue unbound. Cleanup completed.");
+    Ok(())
+    
 }
 
 /// 处理数据包
