@@ -17,15 +17,24 @@ This program is a filter that drops router advertisement that trying to set a no
 
 Use the `-h` or `--help` option to view the help menu.
 
-```shell
+```
 # IPV6PrefixFilter --help
 Some version information here.
 
--p, --prefix      Specify the allowed IPv6 prefixes. Multiple prefixes can be allowed by repeating the `-p` option.
--b, --blacklist-mode  Enable blacklist mode. Prefixes specified with `-p` will be blocked.
--v, --verbose     Display detailed runtime information.
--d, --daemon      Run the program in the background as a daemon.
--h, --help        Display this help menu.
+Example: IPV6PrefixFilter command [options]
+
+Commands:
+    run:        Run the program (in the foreground).
+    clear:      Clear nftables rules (especially when the program exits abnormally).
+    daemon:     Run as a daemon process.
+    version:    Print version information.
+Options:
+    -p, --prefix            Specify the allowed IPv6 prefixes. Multiple prefixes can be allowed by repeating the `-p` option.
+    -b, --blacklist-mode    Enable blacklist mode. Prefixes specified with `-p` will be blocked.
+    -v, --verbose           Display detailed runtime information.
+    -d, --daemon            Run the program in the background as a daemon.
+    -h, --help              Display this help menu.
+    --disable-nft-autoset   Disable the feature of auto set nftables rules.
 ```
 ## How to Build
 
@@ -47,4 +56,9 @@ Please note that you may need to install the musl toolchain to use this target t
 
 ```shell
 sudo apt-get install musl-tools
+```
+Your cargo may also need to be configured for proper cross compilation.
+
+```shell
+rustup target add x86_64-unknown-linux-musl
 ```
