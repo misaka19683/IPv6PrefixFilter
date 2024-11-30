@@ -18,20 +18,20 @@ fn main() {
     let r2 = running.clone(); // 克隆 running 用于队列线程
     // 捕获 Ctrl+C 信号以触发清理
     ctrlc::set_handler(move || {
-        info!("Received Ctrl+C, exiting..."); // 使用日志替代 println!
+        info!("Received Ctrl+C, exiting...");
         r.store(false, Ordering::SeqCst);
     })
     .expect("Error setting Ctrl+C handler");
 
     // 初始化 nftables
-    info!("Setting up nftables..."); // 使用日志替代 println!
+    info!("Setting up nftables...");
     nft::setup_nftables().expect("Failed to set up nftables");
 
     // 启动队列监听器
-    info!("Starting NFQUEUE..."); // 使用日志替代 println!
+    info!("Starting NFQUEUE...");
     let queue_thread = thread::spawn(move || {
         if let Err(e) = queue::start_queue(r2.clone()) {
-            error!("Error in queue: {}", e); // 使用日志替代 eprintln!
+            error!("Error in queue: {}", e);
         }
     });
 
@@ -41,13 +41,14 @@ fn main() {
     }
 
     // 清理 nftables 规则
-    info!("Cleaning up nftables..."); // 使用日志替代 println!
+    info!("Cleaning up nftables...");
     nft::delete_nftables().expect("Failed to delete nftables");
 
     // 等待队列线程结束
     if let Err(e) = queue_thread.join() {
-        error!("Error waiting for queue thread: {:?}", e); // 使用日志替代 eprintln!
+        warn!("Error waiting for queue thread: {:?}", e);
     }
 
-    info!("Program exited cleanly."); // 使用日志替代 println!
+    info!("Program exited cleanly.");
 }
+
