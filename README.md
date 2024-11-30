@@ -16,7 +16,9 @@ TThis program is a Router Advertisement (RA) filter suitable for Linux, which wi
 
 ## Planned Usage
 
-### Precondition
+### Prerequisites
+
+This program relies on `nftables` to intercept RA packets. Please ensure that your system supports `nftables` and has `libnetfilter_queue` installed (along with the corresponding `kmod`).
 
 ### Command Line Help
 Use the `-h` or `--help` option to view the help menu.

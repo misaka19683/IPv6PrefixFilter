@@ -7,7 +7,7 @@
 
 ## TODO
 
-- [x] 通过 NFTables 劫持 RA 到 Queue 中，并在程序中获取。
+- [x] 通过 `nftables` 劫持 RA 到 Queue 中，并在程序中获取。
 - [x] 分析通告内容，判断是否丢弃。
 - [ ] 完善的命令行
 - [x] 集成的 NFTables 规则设置。
@@ -18,6 +18,7 @@
 
 ### 先决条件
 
+本程序依赖 `nftables` 劫持 RA 数据包。请确保您的系统支持 `nftables`，并且安装有 `libnetfilter_queue`（以及对应的 `kmod`）。
 
 ### 命令行帮助
 
