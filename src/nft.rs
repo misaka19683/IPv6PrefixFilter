@@ -1,6 +1,13 @@
-use nftables::{batch::Batch,expr::*, helper::apply_ruleset, schema::*, stmt::*, types::*};
+use nftables::{
+    batch::Batch,
+    expr::{Payload,PayloadField,NamedExpression,Expression}, 
+    helper::apply_ruleset, 
+    schema::{Table,Chain,Rule,NfObject,NfListObject,}, 
+    stmt::{Statement,Match,Operator,Queue}, 
+    types::{NfFamily, NfChainType, NfChainPolicy, NfHook},
+};
 
-fn create_nftables_objects() -> (NfListObject, NfListObject, NfListObject) {
+fn create_nftables_objects() -> Vec<NfObject> {
     // 创建 IPv6 表和链
     let table = Table { family: NfFamily::IP6, name: "rafilter".to_string(), handle: None };
     let chain = Chain {
@@ -31,8 +38,12 @@ fn create_nftables_objects() -> (NfListObject, NfListObject, NfListObject) {
         ..Default::default()
     };
 
-    (NfListObject::Table(table), NfListObject::Chain(chain), NfListObject::Rule(rule))
-    //(table, chain, rule);
+    let (a,b,c) = (
+        NfObject::ListObject(Box::new(NfListObject::Table(table))), 
+        NfObject::ListObject(Box::new(NfListObject::Chain(chain))), 
+        NfObject::ListObject(Box::new(NfListObject::Rule (rule ))),
+    );
+    return  vec![a,b,c];
 }
 
 // 执行多个 nftables 操作命令
@@ -42,23 +53,34 @@ fn apply_nftables_action(a:usize) -> Result<(), Box<dyn std::error::Error>> {
     //     objects: actions.into_iter().map(NfObject::CmdObject).collect(),
     // };
 
-    let (table, chain, rule) = create_nftables_objects();
+    let ruleset = create_nftables_objects();
     let mut batch = Batch::new();
     if a==1 {
-        batch.add(table);
-        batch.add(chain);
-        batch.add(rule);
+        batch.add_all(ruleset);
     }else {
-        batch.delete(table);
-        batch.delete(chain);
-        batch.delete(rule);
+        for obj in ruleset.iter() {
+            // 对 NfObject::ListObject 解构并处理
+            if let NfObject::ListObject(list_obj) = obj {
+                match list_obj.as_ref() {
+                    NfListObject::Table(_) 
+                    | NfListObject::Chain(_) 
+                    | NfListObject::Rule(_) => {
+                        batch.delete(*list_obj.clone());
+                    },
+                    _ => return Err("Unexpected object type in ruleset".into()),
+                }
+            } else {
+                return Err("Unexpected NfObject variant".into());
+            }
+        }
     };
+    
     let ruleset=batch.to_nftables();
+
     apply_ruleset(&ruleset,None, None)?;
-    // 应用 nftables 配置
-    //apply_ruleset(&nf, None, None)?;
 
     Ok(())
+
 }
 pub fn setup_nftables() -> Result<(), Box<dyn std::error::Error>> {
 
@@ -68,13 +90,8 @@ pub fn setup_nftables() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn delete_nftables() -> Result<(), Box<dyn std::error::Error>> {
-    // 构造操作命令：删除表、链和规则
-    // let delete_table = NfCmd::Delete(table_obj);
-    // let delete_chain = NfCmd::Delete(chain_obj);
-    // let delete_rule = NfCmd::Delete(nf_rule_obj);
 
-    // 执行删除操作
-    //apply_nftables_action(vec![delete_table, delete_chain, delete_rule])?;
     apply_nftables_action(0)?;
+
     Ok(())
 }
