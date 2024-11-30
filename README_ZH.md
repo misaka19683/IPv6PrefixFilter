@@ -47,3 +47,7 @@ cargo build --release --target x86_64-unknown-linux-musl
 ```shell
 sudo apt-get install musl-tools
 ```
+你的cargo可能也需要配置正确的交叉编译。
+```shell
+rustup target add x86_64-unknown-linux-musl
+```
