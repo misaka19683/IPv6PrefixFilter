@@ -27,3 +27,24 @@ Some version information here.
 -d, --daemon      Run the program in the background as a daemon.
 -h, --help        Display this help menu.
 ```
+## How to Build
+
+We use `cargo` as the build tool.
+
+To obtain a dynamically compiled version:
+
+```shell
+cargo build --release
+```
+
+To obtain a statically compiled version:
+
+```shell
+cargo build --release --target x86_64-unknown-linux-musl
+```
+
+Please note that you may need to install the musl toolchain to use this target triple. On some systems, you can use the package manager to install it, for example, on Ubuntu:
+
+```shell
+sudo apt-get install musl-tools
+```
