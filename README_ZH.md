@@ -27,3 +27,23 @@ Some version information here.
 -d, --daemon      Run the program in the background as a daemon.
 -h, --help        Display this help menu.
 ```
+## 如何编译
+
+使用了cargo作为编译工具
+
+获取动态编译版本
+
+```shell
+cargo build --release
+```
+
+获取静态编译版本
+
+```shell
+cargo build --release --target x86_64-unknown-linux-musl
+```
+
+请注意，你可能需要安装 musl 工具链来使用这个目标三元组。在某些系统上，你可以使用包管理器来安装它，例如在 Ubuntu 上：
+```shell
+sudo apt-get install musl-tools
+```
