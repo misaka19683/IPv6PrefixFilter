@@ -3,18 +3,22 @@
 
 **Under Construction - Not Yet Functional**
 
-This program is a filter that drops router advertisement that trying to set a non-specified IPv6 prefix. Sometimes a misconfigured router will send you the wrong RA for the wrong prefix setting, or someone will intentionally send you the wrong RA to interfere with your network.
+TThis program is a Router Advertisement (RA) filter suitable for Linux, which will drop router advertisement packets that trying to set a *non-specified IPv6 prefix*. Sometimes a misconfigured router will send you the wrong RA for the wrong prefix setting, or someone will intentionally send you the wrong RA to attack your network.
 
 ## TODO
 
 - [x] Intercept RAs using NFTables and redirect them to a queue for processing.
-- [ ] Analyze RA content and determine whether to discard them.
+- [x] Analyze RA content and determine whether to discard them.
 - [ ] Implement a comprehensive command-line interface.
-- [ ] Integrate NFTables rule management.
+- [x] Integrate NFTables rule management.
+- [ ] Supports rule matching based on regular expressions
 - [ ] Ensure compliance with the Unix philosophy.
 
 ## Planned Usage
 
+### Precondition
+
+### Command Line Help
 Use the `-h` or `--help` option to view the help menu.
 
 ```
