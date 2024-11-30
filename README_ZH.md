@@ -29,7 +29,7 @@ Some version information here.
 ```
 ## 如何编译
 
-使用了cargo作为编译工具
+使用了`cargo`作为编译工具
 
 获取动态编译版本
 
