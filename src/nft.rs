@@ -7,6 +7,10 @@ use nftables::{
     types::{NfFamily, NfChainType, NfChainPolicy, NfHook},
 };
 
+use crate::globals::QUEUE_NUM;
+
+//use crate::queue;
+
 fn create_nftables_objects() -> Vec<NfObject> {
     // 创建 IPv6 表和链
     let table = Table { family: NfFamily::IP6, name: "rafilter".to_string(), handle: None };
@@ -32,7 +36,7 @@ fn create_nftables_objects() -> Vec<NfObject> {
                 right: Expression::Number(134),  // ICMPv6 Router Advertisement
                 op: Operator::EQ,
             }),
-            Statement::Queue(Queue { num: Expression::Number(0), flags: None }),
+            Statement::Queue(Queue { num: Expression::Number(QUEUE_NUM as u32), flags: None }),
         ],
         comment: Some("Queue ICMPv6 Router Advertisement packets".to_string()),
         ..Default::default()
@@ -58,21 +62,6 @@ fn apply_nftables_action(a:usize) -> Result<(), Box<dyn std::error::Error>> {
     if a==1 {
         batch.add_all(ruleset);
     }else {
-        // for obj in ruleset.iter() {
-        //     // 对 NfObject::ListObject 解构并处理
-        //     if let NfObject::ListObject(list_obj) = obj {
-        //         match list_obj.as_ref() {
-        //             NfListObject::Table(_) 
-        //             | NfListObject::Chain(_) 
-        //             | NfListObject::Rule(_) => {
-        //                 batch.delete(*list_obj.clone());
-        //             },
-        //             _ => return Err("Unexpected object type in ruleset".into()),
-        //         }
-        //     } else {
-        //         return Err("Unexpected NfObject variant".into());
-        //     }
-        // }
         for obj in ruleset.iter() {
             // 对 NfObject::ListObject 解构并处理
             if let NfObject::ListObject(list_obj) = obj {
