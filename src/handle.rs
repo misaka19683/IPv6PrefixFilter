@@ -1,11 +1,12 @@
+use env_logger;
 use log::info;
 use std::sync::Arc;
-use crate::nft;
-// use crate::order_parser::push_prefix;
-use crate::queue::{start_queue, process_queue};
-use crate::error::handle_error;
 use std::sync::Mutex;
-use env_logger;
+
+use crate::error::handle_error;
+use crate::nft;
+use crate::queue::{process_queue, start_queue};
+
 /// 处理`run`命令
 pub fn handle_run() {
     // 初始化日志记录
@@ -20,7 +21,7 @@ pub fn handle_run() {
 
     // 启动队列监听器
     info!("Starting NFQUEUE listen...");
-    let mut queue=start_queue().expect("Failed to start NFQUEUE");
+    let mut queue = start_queue().expect("Failed to start NFQUEUE");
 
     // 捕获 Ctrl+C 信号并设置 stop_flag 为 true
     {
@@ -29,17 +30,14 @@ pub fn handle_run() {
             println!("Caught Ctrl+C, throwing interrupted error...");
             let mut stop_flag = stop_flag.lock().unwrap();
             *stop_flag = true; // 设置 stop_flag，允许处理程序退出
-        }).expect("Error setting Ctrl+C handler");
+        })
+        .expect("Error setting Ctrl+C handler");
     }
 
-
-    // push_prefix();
-
-    
     match process_queue(&mut queue, stop_flag) {
-            Ok(_) => info!("Queue processing completed successfully."),
-            Err(e) => handle_error(e),
-        }
+        Ok(_) => info!("Queue processing completed successfully."),
+        Err(e) => handle_error(e),
+    }
 }
 
 /// 清理操作

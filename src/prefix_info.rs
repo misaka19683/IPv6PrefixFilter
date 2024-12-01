@@ -1,6 +1,6 @@
+use pnet::packet::icmpv6::ndp::{NdpOption, NdpOptionType};
 use pnet_macros::packet;
 use pnet_macros_support::types::*;
-use pnet::packet::icmpv6::ndp::{NdpOptionType, NdpOption};
 
 /// Prefix Information Option [RFC 4861 § 4.6.2]
 ///
@@ -36,7 +36,7 @@ pub struct PrefixInformation {
     pub valid_lifetime: u32be,
     pub preferred_lifetime: u32be,
     pub reserved: u32be,
-    #[payload]  
+    #[payload]
     pub prefix: Vec<u8>,
 }
 
@@ -44,9 +44,9 @@ pub trait ToBytes {
     fn to_bytes(&self) -> Vec<u8>;
 }
 
-impl ToBytes for NdpOption{
+impl ToBytes for NdpOption {
     fn to_bytes(&self) -> Vec<u8> {
-        let mut result = Vec::with_capacity((self.length*8).into());
+        let mut result = Vec::with_capacity((self.length * 8).into());
         result.push(self.option_type.0);
         result.push(self.length);
         result.extend(&self.data);
