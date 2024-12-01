@@ -14,5 +14,4 @@ pub fn push_prefix()  {
     let args=Args::parse();
     //let ipv6_prefix = args.ipv6_prefix.octets();
     add_to_container(args.ipv6_prefix);
-    
 }

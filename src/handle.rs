@@ -1,14 +1,11 @@
-use clap::{Parser, Subcommand};
+//use clap::{Parser, Subcommand};
 use std::env::Args;
-use log::{info, error};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use log::info;
+use std::sync::Arc;
 use crate::{nft, order_parser::push_prefix};
 use crate::queue::{start_queue, process_queue};
 use crate::error::handle_error;
-
 use std::sync::Mutex;
-//use std::thread;
-//use std::time::Duration;
 use env_logger;
 /// 处理`run`命令
 pub fn handle_run(args: &Args) {
@@ -31,7 +28,11 @@ pub fn handle_run(args: &Args) {
             *stop_flag = true; // 设置 stop_flag，允许处理程序退出
         }).expect("Error setting Ctrl+C handler");
     }
+
+
     push_prefix();
+
+    
     match process_queue(&mut queue, stop_flag) {
             Ok(_) => info!("Queue processing completed successfully."),
             Err(e) => handle_error(e),
