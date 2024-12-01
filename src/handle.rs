@@ -1,7 +1,7 @@
 use log::info;
 use std::sync::Arc;
 use crate::nft;
-use crate::order_parser::push_prefix;
+// use crate::order_parser::push_prefix;
 use crate::queue::{start_queue, process_queue};
 use crate::error::handle_error;
 use std::sync::Mutex;
@@ -14,8 +14,12 @@ pub fn handle_run() {
     // let running = Arc::new(AtomicBool::new(true));
     let stop_flag = Arc::new(Mutex::new(false));
 
+    // 初始化 nftables
+    info!("Setting up nftables...");
     nft::setup_nftables().expect("Failed to set up nftables");
 
+    // 启动队列监听器
+    info!("Starting NFQUEUE listen...");
     let mut queue=start_queue().expect("Failed to start NFQUEUE");
 
     // 捕获 Ctrl+C 信号并设置 stop_flag 为 true
@@ -29,7 +33,7 @@ pub fn handle_run() {
     }
 
 
-    push_prefix();
+    // push_prefix();
 
     
     match process_queue(&mut queue, stop_flag) {

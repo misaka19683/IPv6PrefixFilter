@@ -1,3 +1,4 @@
+use IPv6PrefixFilter::globals::add_to_container;
 //use IPv6PrefixFilter::globals::QUEUE_NUM;
 use IPv6PrefixFilter::nft;
 use IPv6PrefixFilter::queue::{start_queue, process_queue};
@@ -80,9 +81,6 @@ pub struct Args {
 
     #[arg(long = "disable-nft-autoset")]
     disable_nft_autoset: bool,
-
-    #[arg(short = 'h', long)]
-    help: bool,
 }
 
 /// 定义程序支持的命令
@@ -150,6 +148,7 @@ pub fn handle_clear(args: &Args) {
 fn main() {
     // 解析命令行参数
     let args = Args::parse();
+    add_to_container(args.ipv6_prefixes[0]);
 
     // 根据命令执行不同操作
     match args.command {
