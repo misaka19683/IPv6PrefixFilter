@@ -1,5 +1,3 @@
-//use clap::{Parser, Subcommand};
-use std::env::Args;
 use log::info;
 use std::sync::Arc;
 use crate::{nft, order_parser::push_prefix};
@@ -8,7 +6,7 @@ use crate::error::handle_error;
 use std::sync::Mutex;
 use env_logger;
 /// 处理`run`命令
-pub fn handle_run(args: &Args) {
+pub fn handle_run() {
     // 初始化日志记录
     env_logger::init();
     // 设置退出信号捕获
@@ -40,6 +38,6 @@ pub fn handle_run(args: &Args) {
 }
 
 /// 清理操作
-pub fn handle_clear(args: &Args) {
+pub fn handle_clear() {
     nft::delete_nftables().expect("Failed to clear nftables");
 }
