@@ -8,11 +8,11 @@ use crate::globals::add_to_container;
 struct Args {
     #[arg(short='p', long, default_value = "")]
     ipv6_prefix: Ipv6Addr,
-
+    
 }
-pub fn get_prefix() -> [u8; 16] {
+pub fn push_prefix()  {
     let args=Args::parse();
-    let ipv6_prefix = args.ipv6_prefix.octets();
-    add_to_container(ipv6_prefix);
-    return ipv6_prefix;
+    //let ipv6_prefix = args.ipv6_prefix.octets();
+    add_to_container(args.ipv6_prefix);
+    
 }
