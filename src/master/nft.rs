@@ -51,13 +51,12 @@ fn create_nftables_objects() -> Vec<NfObject> {
         comment: Some("Queue ICMPv6 Router Advertisement packets".to_string()),
         ..Default::default()
     };
-
-    let (a, b, c) = (
+    
+    vec![
         NfObject::ListObject(Box::new(NfListObject::Table(table))),
         NfObject::ListObject(Box::new(NfListObject::Chain(chain))),
-        NfObject::ListObject(Box::new(NfListObject::Rule(rule))),
-    );
-    return vec![a, b, c];
+        NfObject::ListObject(Box::new(NfListObject::Rule (rule ))),
+    ]
 }
 
 // 执行多个 nftables 操作命令

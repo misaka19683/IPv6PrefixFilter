@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
-use std::net::Ipv6Addr;
+//use std::net::Ipv6Addr;
+use ipnet::Ipv6Net;
 // 引用自己的代码
 use IPv6PrefixFilter::globals::add_to_container;
 use IPv6PrefixFilter::handle::handle_run;
-//use IPv6PrefixFilter::queue::{process_queue, start_queue};
 
 /// 程序的命令行参数结构体
 #[derive(Parser, Debug)]
@@ -12,8 +12,8 @@ pub struct Args {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Addr))]
-    ipv6_prefixes: Vec<Ipv6Addr>,
+    #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Net))]
+    ipv6_prefixes: Vec<Ipv6Net>,
 
     #[arg(short = 'i', long)]
     interface: Option<String>,
@@ -35,8 +35,8 @@ pub struct Args {
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     Run {
-        #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Addr))]
-        ipv6_prefix: Option<Ipv6Addr>,
+        #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Net))]
+        ipv6_prefix: Option<Ipv6Net>,
     },
     Clear,
     Daemon,
