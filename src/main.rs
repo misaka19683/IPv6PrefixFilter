@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use ipnet::Ipv6Net;
 // 引用自己的代码
 use IPv6PrefixFilter::globals::add_to_container;
-use IPv6PrefixFilter::handle::handle_run;
+use IPv6PrefixFilter::handle::*;
 
 /// 程序的命令行参数结构体
 #[derive(Parser, Debug)]
@@ -44,12 +44,12 @@ pub enum Commands {
 }
 
 /// 清理操作
-pub fn handle_clear(args: &Args) {
-    println!("Clearing nftables rules.");
-    if args.verbose {
-        println!("Verbose mode enabled.");
-    }
-}
+// pub fn handle_clear(args: &Args) {
+//     println!("Clearing nftables rules.");
+//     if args.verbose {
+//         println!("Verbose mode enabled.");
+//     }
+// }
 
 fn main() {
     // 解析命令行参数
@@ -62,7 +62,7 @@ fn main() {
             handle_run(); // 传递参数给`handle_run`
         }
         Some(Commands::Clear) => {
-            handle_clear(&args); // 传递参数给`handle_clear`
+            handle_clear(); // 传递参数给`handle_clear`
         }
         Some(Commands::Daemon) => {
             println!("Running as daemon.");
