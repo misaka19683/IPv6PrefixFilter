@@ -3,7 +3,7 @@ use std::net::Ipv6Addr;
 // 引用自己的代码
 use IPv6PrefixFilter::globals::add_to_container;
 use IPv6PrefixFilter::handle::handle_run;
-use IPv6PrefixFilter::queue::{process_queue, start_queue};
+//use IPv6PrefixFilter::queue::{process_queue, start_queue};
 
 /// 程序的命令行参数结构体
 #[derive(Parser, Debug)]

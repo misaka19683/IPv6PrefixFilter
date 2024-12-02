@@ -1,5 +1,4 @@
-use crate::nft::delete_nftables;
-use crate::queue::start_queue;
+use crate::master::{delete_nftables,start_queue};
 use log::{error, info};
 use thiserror::Error;
 

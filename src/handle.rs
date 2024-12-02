@@ -4,8 +4,8 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::error::handle_error;
-use crate::nft;
-use crate::queue::{process_queue, start_queue};
+use crate::master::*;
+//use crate::master::queue::{process_queue, start_queue};
 
 /// 处理`run`命令
 pub fn handle_run() {
@@ -17,7 +17,7 @@ pub fn handle_run() {
 
     // 初始化 nftables
     info!("Setting up nftables...");
-    nft::setup_nftables().expect("Failed to set up nftables");
+    setup_nftables().expect("Failed to set up nftables");
 
     // 启动队列监听器
     info!("Starting NFQUEUE listen...");
@@ -42,5 +42,5 @@ pub fn handle_run() {
 
 /// 清理操作
 pub fn handle_clear() {
-    nft::delete_nftables().expect("Failed to clear nftables");
+    delete_nftables().expect("Failed to clear nftables");
 }

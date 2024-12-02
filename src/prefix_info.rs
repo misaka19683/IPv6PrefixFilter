@@ -25,6 +25,7 @@ use pnet_macros_support::types::*;
 /// ```
 ///
 /// [RFC 4861 § 4.6.2]: https://tools.ietf.org/html/rfc4861#section-4.6.2
+#[allow(dead_code)]
 #[packet]
 pub struct PrefixInformation {
     #[construct_with(u8)]
