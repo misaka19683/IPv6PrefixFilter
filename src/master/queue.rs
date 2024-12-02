@@ -1,11 +1,10 @@
 use log::{debug, info};
 use nfq::{Queue, Verdict};
-use pnet::packet::icmpv6::ndp::NdpOptionTypes::PrefixInformation;
-use pnet::packet::icmpv6::ndp::RouterAdvertPacket;
-use pnet::packet::icmpv6::Icmpv6Types::RouterAdvert;
-use pnet::packet::{icmpv6::Icmpv6Packet, ipv6::Ipv6Packet, Packet};
 use std::sync::{Arc, Mutex};
-
+use pnet::packet::{ Packet,ipv6::Ipv6Packet,
+    icmpv6::{Icmpv6Types::RouterAdvert,Icmpv6Packet,
+        ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}}};
+        
 use crate::error::AppError;
 use crate::globals::{get_container_data, QUEUE_NUM};
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
