@@ -60,35 +60,31 @@ fn create_nftables_objects() -> Vec<NfObject> {
 }
 
 // 执行多个 nftables 操作命令
-fn apply_nftables_action(a: usize) -> Result<(), Box<dyn std::error::Error>> {
-    // 将所有命令对象放入 nftables 对象中
-    // let nftables = Nftables {
-    //     objects: actions.into_iter().map(NfObject::CmdObject).collect(),
-    // };
+fn apply_nftables_action(action: usize) -> Result<(), Box<dyn std::error::Error>> {
 
     let ruleset = create_nftables_objects();
     let mut batch = Batch::new();
-    if a == 1 {
-        batch.add_all(ruleset);
-    } else {
-        for obj in ruleset.iter() {
-            // 对 NfObject::ListObject 解构并处理
-            if let NfObject::ListObject(list_obj) = obj {
-                match list_obj.as_ref() {
-                    NfListObject::Table(_) => {
-                        batch.delete(*list_obj.clone());
+
+    match action {
+        1 => batch.add_all(ruleset),
+        0 => {
+            for obj in ruleset.iter() {
+                // 对 NfObject::ListObject 解构并处理
+                if let NfObject::ListObject(list_obj) = obj {
+                    match list_obj.as_ref() {
+                        NfListObject::Table(_) => 
+                            batch.delete(*list_obj.clone()),
+                        _ => {}, // 对于非表对象，不执行任何操作
                     }
-                    _ => {} // 对于非表对象，不执行任何操作
+                } else {
+                    eprintln!("Unexpected NfObject variant");
                 }
-            } else {
-                eprintln!("Unexpected NfObject variant");
             }
-        }
-    };
-
-    let ruleset = batch.to_nftables();
-
-    apply_ruleset(&ruleset, None, None)?;
+        },
+        _ => return Err("Invalid action".into()),
+    }
+// 执行 nftables 命令
+    apply_ruleset(&batch.to_nftables(), None, None)?;
 
     Ok(())
 }
@@ -103,3 +99,7 @@ pub fn delete_nftables() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+    // 将所有命令对象放入 nftables 对象中
+    // let nftables = Nftables {
+    //     objects: actions.into_iter().map(NfObject::CmdObject).collect(),
+    // };
