@@ -1,4 +1,5 @@
 use log::{debug, info};
+use ipnet::Ipv6Net;
 use nfq::{Queue, Verdict};
 use std::sync::{Arc, Mutex};
 use pnet::packet::{ Packet,ipv6::Ipv6Packet,
@@ -50,7 +51,7 @@ pub fn process_queue(
 /// 处理数据包
 fn handle_packet(data: &[u8]) -> Verdict {
     //获取全局变量ipv6_prefix
-    let ipv6_prefix = get_container_data();
+    let ipv6_prefix:Vec<Ipv6Net> = get_container_data();
     // 尝试解析 IPv6 包
     let ipv6_packet = match Ipv6Packet::new(data) {
         Some(packet) => {
@@ -102,7 +103,7 @@ fn handle_packet(data: &[u8]) -> Verdict {
         //     return Verdict::Accept;
         if ipv6_prefix
             .iter()
-            .any(|&prefix| prefix.octets() == pfi.payload())
+            .any(|&prefix| prefix.addr().octets() == pfi.payload())
         {
             info!("Accepted prefix {}!", pkt_prefix_str);
             return Verdict::Accept;
