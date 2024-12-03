@@ -3,7 +3,8 @@ use clap::{Parser, Subcommand};
 use ipnet::Ipv6Net;
 // 引用自己的代码
 use IPv6PrefixFilter::globals::add_to_container;
-use IPv6PrefixFilter::handle::*;
+use IPv6PrefixFilter::{daemon, handle::*};
+
 
 /// 程序的命令行参数结构体
 #[derive(Parser, Debug)]
@@ -65,6 +66,7 @@ fn main() {
             handle_clear(); // 传递参数给`handle_clear`
         }
         Some(Commands::Daemon) => {
+            daemon::daemon_run().expect("Failed to start daemon."); // 启动守护进程
             println!("Running as daemon.");
         }
         Some(Commands::Version) => {

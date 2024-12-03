@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::error::handle_error;
-//use crate::globals::{clear_container,clear_interface_name};
+use crate::globals::{clear_container,clear_interface_name};
 use crate::master::*;
 //use crate::master::queue::{process_queue, start_queue};
 
@@ -14,7 +14,7 @@ pub fn handle_run() {
     env_logger::init();
     // 设置退出信号捕获
     // let running = Arc::new(AtomicBool::new(true));
-    let stop_flag = Arc::new(Mutex::new(false));
+    let stop_flag = Arc::new(Mutex::new(true));
 
     // 初始化 nftables
     info!("Setting up nftables...");
@@ -30,7 +30,7 @@ pub fn handle_run() {
         ctrlc::set_handler(move || {
             println!("Caught Ctrl+C, throwing interrupted error...");
             let mut stop_flag = stop_flag.lock().unwrap();
-            *stop_flag = true; // 设置 stop_flag，允许处理程序退出
+            *stop_flag = false; // 设置 stop_flag，允许处理程序退出
         })
         .expect("Error setting Ctrl+C handler");
     }
@@ -46,4 +46,9 @@ pub fn handle_clear() {
     delete_nftables().expect("Failed to clear nftables");
     // clear_interface_name();
     // clear_container();
+}
+pub fn handle_end(){
+    delete_nftables().expect("Failed to clear nftables");
+    clear_interface_name();
+    clear_container();
 }
