@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::error::handle_error;
+//use crate::globals::{clear_container,clear_interface_name};
 use crate::master::*;
 //use crate::master::queue::{process_queue, start_queue};
 
@@ -43,4 +44,6 @@ pub fn handle_run() {
 /// 清理操作
 pub fn handle_clear() {
     delete_nftables().expect("Failed to clear nftables");
+    // clear_interface_name();
+    // clear_container();
 }

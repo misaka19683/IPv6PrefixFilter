@@ -1,13 +1,12 @@
 use nftables::{
     batch::Batch,
-    expr::{Expression, NamedExpression, Payload, PayloadField},
+    expr::{Expression, NamedExpression, Meta, MetaKey, Payload, PayloadField},
     helper::apply_ruleset,
     schema::{Chain, NfListObject, NfObject, Rule, Table},
     stmt::{Match, Operator, Queue, Statement},
     types::{NfChainPolicy, NfChainType, NfFamily, NfHook},
 };
-
-use crate::globals::QUEUE_NUM;
+use crate::globals::{QUEUE_NUM,get_interface_name};
 
 fn create_nftables_objects() -> Vec<NfObject> {
     // 创建 IPv6 表和链
@@ -27,27 +26,38 @@ fn create_nftables_objects() -> Vec<NfObject> {
         ..Default::default()
     };
 
+     let mut rule_expr=vec![
+        Statement::Match(Match {
+            left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(
+                PayloadField {
+                    protocol: "icmpv6".to_string(),
+                    field: "type".to_string(),
+                },
+            ))),
+            right: Expression::Number(134), // ICMPv6 Router Advertisement
+            op: Operator::EQ,
+        }),
+        Statement::Queue(Queue {
+            num: Expression::Number(QUEUE_NUM as u32),
+            flags: None,
+        }),
+     ];
+    let interface_name= get_interface_name();
+    if let Some(the_name)= interface_name {
+        rule_expr.insert(0,
+            Statement::Match(Match {
+                left:Expression::Named(NamedExpression::Meta(Meta{key:MetaKey::Iifname})),
+                right: Expression::String(the_name),
+                op: Operator::EQ,
+            }),
+        );
+    }else {}
     // 创建匹配 ICMPv6 Router Advertisement 的规则
     let rule = Rule {
         family: NfFamily::IP6,
         table: table.name.clone(),
         chain: chain.name.clone(),
-        expr: vec![
-            Statement::Match(Match {
-                left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(
-                    PayloadField {
-                        protocol: "icmpv6".to_string(),
-                        field: "type".to_string(),
-                    },
-                ))),
-                right: Expression::Number(134), // ICMPv6 Router Advertisement
-                op: Operator::EQ,
-            }),
-            Statement::Queue(Queue {
-                num: Expression::Number(QUEUE_NUM as u32),
-                flags: None,
-            }),
-        ],
+        expr: rule_expr,
         comment: Some("Queue ICMPv6 Router Advertisement packets".to_string()),
         ..Default::default()
     };
@@ -103,3 +113,25 @@ pub fn delete_nftables() -> Result<(), Box<dyn std::error::Error>> {
     // let nftables = Nftables {
     //     objects: actions.into_iter().map(NfObject::CmdObject).collect(),
     // };
+
+            // expr: vec![
+        //     Statement::Match(Match {
+        //         left:Expression::Named(NamedExpression::Meta(Meta{key:MetaKey::Iifname})),
+        //         right: Expression::String(thename),
+        //         op: Operator::EQ,
+        //     }),
+        //     Statement::Match(Match {
+        //         left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(
+        //             PayloadField {
+        //                 protocol: "icmpv6".to_string(),
+        //                 field: "type".to_string(),
+        //             },
+        //         ))),
+        //         right: Expression::Number(134), // ICMPv6 Router Advertisement
+        //         op: Operator::EQ,
+        //     }),
+        //     Statement::Queue(Queue {
+        //         num: Expression::Number(QUEUE_NUM as u32),
+        //         flags: None,
+        //     }),
+        // ],
