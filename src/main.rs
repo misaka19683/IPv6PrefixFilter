@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 //use std::net::Ipv6Addr;
 use ipnet::Ipv6Net;
 // 引用自己的代码
-use IPv6PrefixFilter::globals::add_to_container;
+use IPv6PrefixFilter::globals::{add_to_container, BLACKLIST_MODE};
 use IPv6PrefixFilter::{daemon, handle::*};
 
 
@@ -42,6 +42,7 @@ pub enum Commands {
     Clear,
     Daemon,
     Version,
+    // BlacklistMode,
 }
 
 /// 清理操作
@@ -56,6 +57,11 @@ fn main() {
     // 解析命令行参数
     let args = Args::parse();
     add_to_container(args.ipv6_prefixes[0]);
+
+
+    // match args{}
+        
+    // }
 
     // 根据命令执行不同操作
     match args.command {
@@ -72,6 +78,10 @@ fn main() {
         Some(Commands::Version) => {
             println!("Version 1.0.0");
         }
+        // Some(Commands::BlacklistMode)=>{
+        //     let mut flag=BLACKLIST_MODE.lock().unwrap();
+        //     *flag=!*flag;
+        // }
         None => {
             println!("No command provided. Use --help for help.");
         }

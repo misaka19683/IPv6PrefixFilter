@@ -5,14 +5,9 @@ use pnet::datalink::{interfaces,NetworkInterface};
 //{interfaces, NetworkInterface};
 // 全局变量定义
 pub static QUEUE_NUM: u16 = 0;
-pub static GLOBAL_MODE:Mode=Mode::Whitelist;
+pub static BLACKLIST_MODE: Mutex<bool> = Mutex::new(false);
 pub static GLOBAL_CONTAINER: Lazy<Mutex<Vec<Ipv6Net>>> = Lazy::new(|| Mutex::new(Vec::new()));
 pub static INTERFACE_NAME: Lazy<Mutex<Option<NetworkInterface>>> = Lazy::new(|| Mutex::new(None));
-
-pub enum Mode {
-    Whitelist,
-    Blacklist,
-}
 
 // GLOBAL_CONTAINER 方法
 /// 向全局容器添加一个截断后的 IPv6 网络。

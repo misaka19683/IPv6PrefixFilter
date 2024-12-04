@@ -6,8 +6,8 @@ use pnet::packet::{ Packet,ipv6::Ipv6Packet,
         icmpv6::{Icmpv6Types::RouterAdvert,Icmpv6Packet,
         ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}}};
 
-use crate::{error::AppError, globals::GLOBAL_MODE};
-use crate::globals::{get_container_data, QUEUE_NUM, Mode};
+use crate::error::AppError;
+use crate::globals::{get_container_data, QUEUE_NUM, BLACKLIST_MODE};
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use crate::utils::ipv6_addr_u8_to_string;
 
@@ -110,24 +110,33 @@ fn handle_packet(data: &[u8]) -> Verdict {
         //     info!("Droped! prefix {}!", pkt_prefix_str);
         //     return Verdict::Drop;
         // }
+        //let blacklist_mode:bool = *BLACKLIST_MODE.lock().unwrap();
+        //let blacklist_mode:bool;
+        let blacklist_mode = match BLACKLIST_MODE.lock() {//读取全局变量-黑名单模式
+            Ok(guard)=> *guard,
+            Err(e)=>{
+                eprint!("Failed to acquire lock for BLACKLIST_MODE: {}", e);
+                false
+            },
+        };
         let is_prefix_in_list = ipv6_prefix.iter().any(|&prefix| prefix.addr().octets() == pfi.payload());
-        let verdict = decide_verdict(&GLOBAL_MODE,is_prefix_in_list);
+        let verdict = decide_verdict(blacklist_mode,is_prefix_in_list);
         log_and_return(verdict, &pkt_prefix_str);
         return verdict;
     }
     Verdict::Accept
 }
-fn decide_verdict(mode:&Mode,is_prefix_in_list:bool)->Verdict{
-        match (mode, is_prefix_in_list) {
-            (Mode::Whitelist, true) => {Verdict::Accept},
-            (Mode::Blacklist, false) => Verdict::Accept,
+fn decide_verdict(blacklist_mode: bool, is_prefix_in_list: bool) -> Verdict {
+        match (blacklist_mode, is_prefix_in_list) {
+            (false, true) => {Verdict::Accept},
+            (true, false) => Verdict::Accept,
             _ => Verdict::Drop,
         }
 }
 fn log_and_return(verdict: Verdict, prefix: &str) {
     match verdict {
         Verdict::Accept => info!("Accepted prefix {}!", prefix),
-        Verdict::Drop => info!("Dropped! prefix {}!", prefix),
+        Verdict::Drop   => info!("Dropped! prefix {}!", prefix),
         _=>{},
     }
 }
