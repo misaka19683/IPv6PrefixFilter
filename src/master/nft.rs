@@ -47,7 +47,7 @@ fn create_nftables_objects() -> Vec<NfObject> {
         rule_expr.insert(0,
             Statement::Match(Match {
                 left:Expression::Named(NamedExpression::Meta(Meta{key:MetaKey::Iifname})),
-                right: Expression::String(the_name),
+                right: Expression::String(the_name.name),
                 op: Operator::EQ,
             }),
         );
