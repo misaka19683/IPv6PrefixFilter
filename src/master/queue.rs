@@ -6,8 +6,8 @@ use pnet::packet::{ Packet,ipv6::Ipv6Packet,
         icmpv6::{Icmpv6Types::RouterAdvert,Icmpv6Packet,
         ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}}};
 
-use crate::error::AppError;
-use crate::globals::{get_container_data, QUEUE_NUM};
+use crate::{error::AppError, globals::GLOBAL_MODE};
+use crate::globals::{get_container_data, QUEUE_NUM, Mode};
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use crate::utils::ipv6_addr_u8_to_string;
 
@@ -99,16 +99,35 @@ fn handle_packet(data: &[u8]) -> Verdict {
         // if pfi.payload() == ipv6_prefix {
         //     info!("Accepted prefix {}!", pkt_prefix_str);
         //     return Verdict::Accept;
-        if ipv6_prefix
-            .iter()
-            .any(|&prefix| prefix.addr().octets() == pfi.payload())
-        {
-            info!("Accepted prefix {}!", pkt_prefix_str);
-            return Verdict::Accept;
-        } else {
-            info!("Droped! prefix {}!", pkt_prefix_str);
-            return Verdict::Drop;
-        }
+
+        // if ipv6_prefix
+        //     .iter()
+        //     .any(|&prefix| prefix.addr().octets() == pfi.payload())
+        // {
+        //     info!("Accepted prefix {}!", pkt_prefix_str);
+        //     return Verdict::Accept;
+        // } else {
+        //     info!("Droped! prefix {}!", pkt_prefix_str);
+        //     return Verdict::Drop;
+        // }
+        let is_prefix_in_list = ipv6_prefix.iter().any(|&prefix| prefix.addr().octets() == pfi.payload());
+        let verdict = decide_verdict(&GLOBAL_MODE,is_prefix_in_list);
+        log_and_return(verdict, &pkt_prefix_str);
+        return verdict;
     }
     Verdict::Accept
+}
+fn decide_verdict(mode:&Mode,is_prefix_in_list:bool)->Verdict{
+        match (mode, is_prefix_in_list) {
+            (Mode::Whitelist, true) => {Verdict::Accept},
+            (Mode::Blacklist, false) => Verdict::Accept,
+            _ => Verdict::Drop,
+        }
+}
+fn log_and_return(verdict: Verdict, prefix: &str) {
+    match verdict {
+        Verdict::Accept => info!("Accepted prefix {}!", prefix),
+        Verdict::Drop => info!("Dropped! prefix {}!", prefix),
+        _=>{},
+    }
 }
