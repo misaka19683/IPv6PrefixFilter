@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 //use std::net::Ipv6Addr;
 use ipnet::Ipv6Net;
 // 引用自己的代码
-use IPv6PrefixFilter::globals::{add_to_container, BLACKLIST_MODE};
+use IPv6PrefixFilter::globals::*;
 use IPv6PrefixFilter::{daemon, handle::*};
 
 
@@ -39,9 +39,18 @@ pub enum Commands {
         #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Net))]
         ipv6_prefix: Option<Ipv6Net>,
     },
+    // 清理nftables规则
     Clear,
     Daemon,
     Version,
+    //我希望可以向list中添加一个IPv6前缀
+    ///Add Ipv6 prefix to the list
+    AddList{
+        #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Net))]
+        ipv6_prefixes: Vec<Ipv6Net>,
+    },
+    ///Remove all Ipv6 prefix from the list
+    EmptyList,
     // BlacklistMode,
 }
 
@@ -56,13 +65,21 @@ pub enum Commands {
 fn main() {
     // 解析命令行参数
     let args = Args::parse();
-    add_to_container(args.ipv6_prefixes[0]);
-
-
+    let prefixs=args.ipv6_prefixes;
+    for prefix in prefixs.iter() {
+        add_to_container(*prefix);
+    }
+    if let Some(interface)= args.interface{
+        set_interface_name(interface);
+    };
+    
     // match args{}
         
     // }
-
+    if args.blacklist_mode{
+        let mut flag=BLACKLIST_MODE.lock().unwrap();
+        *flag=true;
+    }
     // 根据命令执行不同操作
     match args.command {
         Some(Commands::Run { .. }) => {
@@ -78,17 +95,29 @@ fn main() {
         Some(Commands::Version) => {
             println!("Version 1.0.0");
         }
+        Some(Commands::AddList{ipv6_prefixes})=>{
+            for prefix in ipv6_prefixes{
+                add_to_container(prefix);
+            }
+        }
+        Some(Commands::EmptyList)=>{
+            clear_container();
+        }
         // Some(Commands::BlacklistMode)=>{
         //     let mut flag=BLACKLIST_MODE.lock().unwrap();
         //     *flag=!*flag;
         // }
-        None => {
+        // None => {
+        //     println!("No command provided. Use --help for help.");
+        // }
+        _ => {
             println!("No command provided. Use --help for help.");
         }
     }
 
     // 输出所有的IPv6前缀
-    for prefix in &args.ipv6_prefixes {
+    let prefixs=get_container_data();
+    for prefix in prefixs.iter() {
         println!("Allowed IPv6 prefix: {}", prefix);
     }
 }
