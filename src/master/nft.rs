@@ -1,9 +1,9 @@
 use nftables::{
     batch::Batch,
-    expr::{Expression, NamedExpression, Meta, MetaKey, Payload, PayloadField},
-    helper::apply_ruleset,
-    schema::{Chain, NfListObject, NfObject, Rule, Table},
-    stmt::{Match, Operator, Queue, Statement},
+    expr::{Expression, Meta, MetaKey, NamedExpression, Payload, PayloadField},
+    helper::{apply_ruleset, get_current_ruleset},
+    schema::{Chain, NfListObject, NfObject,  Rule, Table},
+    stmt::{Counter, Match, Operator, Queue, Statement},
     types::{NfChainPolicy, NfChainType, NfFamily, NfHook},
 };
 use crate::globals::{QUEUE_NUM,get_interface_name};
@@ -37,6 +37,9 @@ fn create_nftables_objects() -> Vec<NfObject> {
             right: Expression::Number(134), // ICMPv6 Router Advertisement
             op: Operator::EQ,
         }),
+        Statement::Counter(
+            Counter::Named("RA_counter".to_string())
+        ),
         Statement::Queue(Queue {
             num: Expression::Number(QUEUE_NUM as u32),
             flags: None,
@@ -44,7 +47,8 @@ fn create_nftables_objects() -> Vec<NfObject> {
      ];
     let interface_name= get_interface_name();
     if let Some(the_name)= interface_name {
-        rule_expr.insert(0,
+        rule_expr.insert(
+            0,
             Statement::Match(Match {
                 left:Expression::Named(NamedExpression::Meta(Meta{key:MetaKey::Iifname})),
                 right: Expression::String(the_name.name),
@@ -62,10 +66,18 @@ fn create_nftables_objects() -> Vec<NfObject> {
         ..Default::default()
     };
     
+    let counter=nftables::schema::Counter{
+        family: NfFamily::IP6,
+        table: table.name.clone(),
+        name: "RA_counter".to_string(),
+        ..Default::default()
+    };
+    
     vec![
         NfObject::ListObject(Box::new(NfListObject::Table(table))),
         NfObject::ListObject(Box::new(NfListObject::Chain(chain))),
         NfObject::ListObject(Box::new(NfListObject::Rule (rule ))),
+        NfObject::ListObject(Box::new(NfListObject::Counter(counter))),
     ]
 }
 
@@ -140,3 +152,21 @@ pub fn delete_nftables() -> Result<(), Box<dyn std::error::Error>> {
         //         flags: None,
         //     }),
         // ],
+pub fn get_counter_value() -> Option<u32> {
+    let rulesets=match get_current_ruleset(None,None){
+        Ok(rules) => rules.objects,
+        Err(_) => panic!("Failed to get current ruleset"),// Err("Failed to get current ruleset".into()),
+    };
+    //let nfobjects=ruleset.objects;
+    for ruleset in rulesets.into_iter() {
+        if let NfObject::ListObject(list_obj) = ruleset {
+            if let NfListObject::Counter(counter) = list_obj.as_ref() {
+                if counter.name == "RA_counter".to_string() {
+                    return counter.packets;
+                }
+            }
+        }
+    };
+    None
+    //NfObject::CmdObject(NfCmd::List(NfListObject::Counter(counter)));
+}

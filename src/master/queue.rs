@@ -11,6 +11,8 @@ use crate::globals::{get_container_data, QUEUE_NUM, BLACKLIST_MODE};
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use crate::utils::ipv6_addr_u8_to_string;
 
+use super::nft::get_counter_value;
+
 /// 启动队列监听器
 pub fn start_queue() -> std::result::Result<Queue, AppError> {
     let mut queue = Queue::open().map_err(|e| AppError::QueueStartError(e.to_string()))?; // 打开 NFQUEUE
@@ -25,32 +27,35 @@ pub fn start_queue() -> std::result::Result<Queue, AppError> {
 
 pub fn process_queue(queue: &mut Queue, stop_flag: Arc<Mutex<bool>>,) 
     -> std::result::Result<(), AppError> {
+        queue.set_nonblocking(true);
+        let mut count=0u32;
+        let mut last_count;
 
-    // 设置队列为非阻塞
-    queue.set_nonblocking(true);
-    while *stop_flag.lock().unwrap() {
-        match queue.recv() {
-            Ok(mut msg) => {
-                let data = msg.get_payload();
-
-                let verdict = handle_packet(data);
-
-                msg.set_verdict(verdict);
-
-                queue.verdict(msg)?;
-            }
-            Err(_) => {
-                // return Err(AppError::QueueProcessError(
-                //     "Failed to receive packet from queue".to_string(),
-                // ));
+        while *stop_flag.lock().unwrap() {
+            last_count= get_counter_value().unwrap_or(0u32);
+            if last_count > count{
+                match queue.recv() {
+                    Ok(mut msg) => {
+                        let data = msg.get_payload();
+        
+                        let verdict = handle_packet(data);
+        
+                        msg.set_verdict(verdict);
+        
+                        queue.verdict(msg)?;
+                        count=last_count;
+                    }
+                    Err(_) => {
+                        sleep(Duration::from_millis(10));
+                        continue;
+                    }
+                }
+            }else{
                 sleep(Duration::from_millis(50));
-                continue;
             }
         }
+        Err(AppError::Interrupt)
     }
-    Err(AppError::Interrupt)
-}
-
 /// 处理数据包
 fn handle_packet(data: &[u8]) -> Verdict {
     //获取全局变量ipv6_prefix
