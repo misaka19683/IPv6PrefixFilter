@@ -54,14 +54,6 @@ pub enum Commands {
     // BlacklistMode,
 }
 
-/// 清理操作
-// pub fn handle_clear(args: &Args) {
-//     println!("Clearing nftables rules.");
-//     if args.verbose {
-//         println!("Verbose mode enabled.");
-//     }
-// }
-
 fn main() {
     // 解析命令行参数
     let args = Args::parse();
@@ -101,10 +93,7 @@ fn main() {
         Some(Commands::EmptyList)=>{
             clear_container();
         }
-        // Some(Commands::BlacklistMode)=>{
-        //     let mut flag=BLACKLIST_MODE.lock().unwrap();
-        //     *flag=!*flag;
-        // }
+
         // None => {
         //     println!("No command provided. Use --help for help.");
         // }

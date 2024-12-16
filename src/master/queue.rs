@@ -1,8 +1,7 @@
 use log::{debug, info};
-use std::time::Duration;
 use ipnet::Ipv6Net;
 use nfq::{Queue, Verdict};
-use std::{sync::{Arc, Mutex}, thread::sleep};
+use std::{sync::{Arc, Mutex}, thread::sleep, time::Duration};
 use pnet::packet::{ Packet,ipv6::Ipv6Packet,
         icmpv6::{Icmpv6Types::RouterAdvert,Icmpv6Packet,
         ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}}};
@@ -26,7 +25,7 @@ pub fn start_queue() -> std::result::Result<Queue, AppError> {
 
 pub fn process_queue(queue: &mut Queue, stop_flag: Arc<Mutex<bool>>,) 
     -> std::result::Result<(), AppError> {
-        
+
     // 设置队列为非阻塞
     queue.set_nonblocking(true);
     while *stop_flag.lock().unwrap() {
@@ -119,7 +118,7 @@ fn handle_packet(data: &[u8]) -> Verdict {
 }
 fn decide_verdict(blacklist_mode: bool, is_prefix_in_list: bool) -> Verdict {
         match (blacklist_mode, is_prefix_in_list) {
-            (false, true) => {Verdict::Accept},
+            (false, true) => Verdict::Accept,
             (true, false) => Verdict::Accept,
             _ => Verdict::Drop,
         }

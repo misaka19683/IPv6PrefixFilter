@@ -51,7 +51,7 @@ fn create_nftables_objects() -> Vec<NfObject> {
                 op: Operator::EQ,
             }),
         );
-    }else {}
+    }
     // 创建匹配 ICMPv6 Router Advertisement 的规则
     let rule = Rule {
         family: NfFamily::IP6,
@@ -70,14 +70,14 @@ fn create_nftables_objects() -> Vec<NfObject> {
 }
 
 // 执行多个 nftables 操作命令
-fn apply_nftables_action(action: usize) -> Result<(), Box<dyn std::error::Error>> {
+fn apply_nftables_action(action:Action) -> Result<(), Box<dyn std::error::Error>> {
 
     let ruleset = create_nftables_objects();
     let mut batch = Batch::new();
 
     match action {
-        1 => batch.add_all(ruleset),
-        0 => {
+        Action::AddAll => batch.add_all(ruleset),
+        Action::DeleteAll => {
             for obj in ruleset.iter() {
                 // 对 NfObject::ListObject 解构并处理
                 if let NfObject::ListObject(list_obj) = obj {
@@ -91,21 +91,26 @@ fn apply_nftables_action(action: usize) -> Result<(), Box<dyn std::error::Error>
                 }
             }
         },
-        _ => return Err("Invalid action".into()),
+        //_ => return Err("Invalid action".into()),
     }
 // 执行 nftables 命令
     apply_ruleset(&batch.to_nftables(), None, None)?;
 
     Ok(())
 }
+
+enum Action {
+    AddAll,
+    DeleteAll,
+}
 pub fn setup_nftables() -> Result<(), Box<dyn std::error::Error>> {
-    apply_nftables_action(1)?;
+    apply_nftables_action(Action::AddAll)?;
 
     Ok(())
 }
 
 pub fn delete_nftables() -> Result<(), Box<dyn std::error::Error>> {
-    apply_nftables_action(0)?;
+    apply_nftables_action(Action::DeleteAll)?;
 
     Ok(())
 }
