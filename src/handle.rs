@@ -1,6 +1,6 @@
 use env_logger;
 use log::info;
-use std::sync::{Arc, Mutex,Condvar};
+use std::sync::{Arc, Mutex};
 
 
 use crate::error::handle_error;

@@ -26,6 +26,7 @@ pub fn start_queue() -> std::result::Result<Queue, AppError> {
 pub fn process_queue(queue: &mut Queue, stop_flag: Arc<Mutex<bool>>,) 
     -> std::result::Result<(), AppError> {
     while *stop_flag.lock().unwrap() {
+        queue.set_nonblocking(true);
         match queue.recv() {
             Ok(mut msg) => {
                 let data = msg.get_payload();
