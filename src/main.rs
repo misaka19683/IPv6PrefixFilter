@@ -73,16 +73,14 @@ fn main() {
         set_interface_name(interface);
     };
     
-    // match args{}
-        
-    // }
     if args.blacklist_mode{
         let mut flag=BLACKLIST_MODE.lock().unwrap();
         *flag=true;
     }
     // 根据命令执行不同操作
     match args.command {
-        Some(Commands::Run { .. }) => {
+        Some(Commands::Run { ipv6_prefix }) => {
+            add_to_container(ipv6_prefix.unwrap());
             handle_run(); // 传递参数给`handle_run`
         }
         Some(Commands::Clear) => {

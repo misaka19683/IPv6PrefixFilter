@@ -1,7 +1,8 @@
 use log::{debug, info};
+use std::time::Duration;
 use ipnet::Ipv6Net;
 use nfq::{Queue, Verdict};
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, thread::sleep};
 use pnet::packet::{ Packet,ipv6::Ipv6Packet,
         icmpv6::{Icmpv6Types::RouterAdvert,Icmpv6Packet,
         ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}}};
@@ -25,8 +26,10 @@ pub fn start_queue() -> std::result::Result<Queue, AppError> {
 
 pub fn process_queue(queue: &mut Queue, stop_flag: Arc<Mutex<bool>>,) 
     -> std::result::Result<(), AppError> {
+        
+    // 设置队列为非阻塞
+    queue.set_nonblocking(true);
     while *stop_flag.lock().unwrap() {
-        queue.set_nonblocking(true);
         match queue.recv() {
             Ok(mut msg) => {
                 let data = msg.get_payload();
@@ -38,9 +41,11 @@ pub fn process_queue(queue: &mut Queue, stop_flag: Arc<Mutex<bool>>,)
                 queue.verdict(msg)?;
             }
             Err(_) => {
-                return Err(AppError::QueueProcessError(
-                    "Failed to receive packet from queue".to_string(),
-                ));
+                // return Err(AppError::QueueProcessError(
+                //     "Failed to receive packet from queue".to_string(),
+                // ));
+                sleep(Duration::from_millis(50));
+                continue;
             }
         }
     }
@@ -97,22 +102,7 @@ fn handle_packet(data: &[u8]) -> Verdict {
         };
         let pkt_prefix_str = ipv6_addr_u8_to_string(pfi.payload());
         debug!("IPv6 Prefix in packet is {}", pkt_prefix_str);
-        // if pfi.payload() == ipv6_prefix {
-        //     info!("Accepted prefix {}!", pkt_prefix_str);
-        //     return Verdict::Accept;
-
-        // if ipv6_prefix
-        //     .iter()
-        //     .any(|&prefix| prefix.addr().octets() == pfi.payload())
-        // {
-        //     info!("Accepted prefix {}!", pkt_prefix_str);
-        //     return Verdict::Accept;
-        // } else {
-        //     info!("Droped! prefix {}!", pkt_prefix_str);
-        //     return Verdict::Drop;
-        // }
-        //let blacklist_mode:bool = *BLACKLIST_MODE.lock().unwrap();
-        //let blacklist_mode:bool;
+       
         let blacklist_mode = match BLACKLIST_MODE.lock() {//读取全局变量-黑名单模式
             Ok(guard)=> *guard,
             Err(e)=>{
@@ -141,3 +131,19 @@ fn log_and_return(verdict: Verdict, prefix: &str) {
         _=>{},
     }
 }
+ // if pfi.payload() == ipv6_prefix {
+        //     info!("Accepted prefix {}!", pkt_prefix_str);
+        //     return Verdict::Accept;
+
+        // if ipv6_prefix
+        //     .iter()
+        //     .any(|&prefix| prefix.addr().octets() == pfi.payload())
+        // {
+        //     info!("Accepted prefix {}!", pkt_prefix_str);
+        //     return Verdict::Accept;
+        // } else {
+        //     info!("Droped! prefix {}!", pkt_prefix_str);
+        //     return Verdict::Drop;
+        // }
+        //let blacklist_mode:bool = *BLACKLIST_MODE.lock().unwrap();
+        //let blacklist_mode:bool;
