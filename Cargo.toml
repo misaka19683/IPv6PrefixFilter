@@ -17,3 +17,20 @@ pnet = "0.35.0"
 pnet_macros = "0.35.0"
 pnet_macros_support = "0.35.0"
 thiserror = "2.0.3"
+
+[profile.release]
+opt-level = "z"
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dist]
+inherits = "release"
+opt-level = "z"
+debug = false
+strip = true
+lto = true
+codegen-units = 1
+incremental = false
+panic = "abort"

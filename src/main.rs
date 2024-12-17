@@ -2,8 +2,7 @@ use clap::{Parser, Subcommand};
 //use std::net::Ipv6Addr;
 use ipnet::Ipv6Net;
 // 引用自己的代码
-use IPv6PrefixFilter::globals::*;
-use IPv6PrefixFilter::{daemon, handle::*};
+use IPv6PrefixFilter::{daemon, master::*,globals::*};
 
 
 /// 程序的命令行参数结构体
@@ -65,10 +64,15 @@ fn main() {
         set_interface_name(interface);
     };
     
-    if args.blacklist_mode{
-        let mut flag=BLACKLIST_MODE.lock().unwrap();
-        *flag=true;
-    }
+
+    // if let black_prefixes=args.blacklist_mode_prefixes{
+    //     let mut flag=BLACKLIST_MODE.lock().unwrap();
+    //     *flag=true;
+    //     for prefix in black_prefixes.iter(){
+    //         add_to_container(*prefix);
+    //     }
+    // }
+
     // 根据命令执行不同操作
     match args.command {
         Some(Commands::Run { ipv6_prefix }) => {

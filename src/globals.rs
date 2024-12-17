@@ -53,10 +53,6 @@ pub fn clear_interface_name() {
     let mut interface_name = INTERFACE_NAME.lock().unwrap();
     *interface_name = None;
 }
-// pub fn set_interface_name(name:Option<String> ) {
-//     let mut interface_name = INTERFACE_NAME.lock().unwrap();
-//     *interface_name = name;
-// }
 // // 新增一个函数，接受 &str 参数并设置接口名称
 // pub fn set_interface_name_from_str(name: &str) {
 //     let mut interface_name = INTERFACE_NAME.lock().unwrap();

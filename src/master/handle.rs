@@ -8,6 +8,10 @@ use crate::globals::{clear_container,clear_interface_name};
 use crate::master::*;
 //use crate::master::queue::{process_queue, start_queue};
 
+
+pub fn handle_init(){
+    start_queue().unwrap();
+}
 /// 处理`run`命令
 pub fn handle_run() {
     // 初始化日志记录

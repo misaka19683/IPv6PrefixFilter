@@ -1,4 +1,4 @@
-use crate::master::{delete_nftables,start_queue};
+use crate::master::{handle_clear, handle_init};
 use log::{error, info};
 use thiserror::Error;
 
@@ -29,33 +29,26 @@ pub type Result<T> = std::result::Result<T, AppError>;
 pub fn handle_error(err: AppError) {
     match err {
         AppError::Interrupt => {
-            delete_nftables().unwrap();
+            handle_clear();
             println!("Received Ctrl+C, exiting...");
             info!("Program exited cleanly.");
             //程序结束
         }
         AppError::IoError(e) => {
-            delete_nftables().unwrap();
+            handle_clear();
             eprintln!("I/O error: {}", e);
         }
         AppError::QueueStartError(msg) => {
             eprintln!("Failed to start queue,try again. Error: {}", msg);
-            match start_queue() {
-                Ok(_) => {
-                    info!("Queue restarted successfully.");
-                }
-                Err(e) => {
-                    eprintln!("Failed to start queue: {}", e);
-                }
-            }
+        handle_init(); 
         }
         AppError::QueueProcessError(msg) => {
-            delete_nftables().unwrap();
+            handle_clear();
             eprintln!("Queue error: {}", msg);
         }
 
         AppError::Unexpected(msg) => {
-            delete_nftables().unwrap();
+            handle_clear();
             eprintln!("Unexpected error: {}", msg);
         } //AppError::_ =>{}
     }

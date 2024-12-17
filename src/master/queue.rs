@@ -40,9 +40,6 @@ pub fn process_queue(queue: &mut Queue, stop_flag: Arc<Mutex<bool>>,)
                 queue.verdict(msg)?;
             }
             Err(_) => {
-                // return Err(AppError::QueueProcessError(
-                //     "Failed to receive packet from queue".to_string(),
-                // ));
                 sleep(Duration::from_millis(50));
                 continue;
             }
