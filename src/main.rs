@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 //use std::net::Ipv6Addr;
 use ipnet::Ipv6Net;
+use log::debug;
 // 引用自己的代码
 #[cfg(target_os = "linux")]
 use IPv6PrefixFilter::daemon;
@@ -57,6 +58,7 @@ pub enum Commands {
 
 fn main() {
     // 解析命令行参数
+    println!("IPv6PrefixFilter");
     let args = Args::parse();
     let prefixs=args.ipv6_prefixes;
     for prefix in prefixs.iter() {
@@ -78,9 +80,20 @@ fn main() {
     // 根据命令执行不同操作
     match args.command {
         Some(Commands::Run { ipv6_prefix }) => {
+
+            debug!("Running with prefix: {}", ipv6_prefix.unwrap());
             add_to_container(ipv6_prefix.unwrap());
+
+            #[cfg(target_os = "linux")]
+            debug!("linux handle_run");
             #[cfg(target_os = "linux")]
             handle_run(); // 传递参数给`handle_run`
+
+            #[cfg(windows)]
+            debug!("windows handle_run");
+            println!("Running with prefix");
+            #[cfg(windows)]
+            handle_run();
         }
         Some(Commands::Clear) => {
             #[cfg(target_os = "linux")]

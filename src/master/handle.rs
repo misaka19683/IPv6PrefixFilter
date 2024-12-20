@@ -1,5 +1,5 @@
 use env_logger;
-use log::info;
+use log::{info,warn,debug};
 use std::sync::{Arc, Mutex};
 
 
@@ -67,5 +67,23 @@ use windivert_deal::*;
 
 #[cfg(windows)]
 pub fn handle_run() {
-    the_process().unwrap();
+    // if let Err(e) = the_process() {
+    //     eprintln!("Error: {}", e);
+    // }
+    info!("run");
+    debug!("debug_run");
+    let stop_flag = Arc::new(Mutex::new(true));
+
+    {
+        let stop_flag = Arc::clone(&stop_flag);
+        ctrlc::set_handler(move || {
+            println!("Caught Ctrl+C, throwing interrupted error...");
+            let mut stop_flag = stop_flag.lock().unwrap();
+            *stop_flag = false; // 设置 stop_flag，允许处理程序退出
+        })
+        .expect("Error setting Ctrl+C handler");
+    }
+    info!("start_deal");
+    debug!("debug_start_deal");
+    the_process(stop_flag);
 }

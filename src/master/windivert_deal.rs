@@ -18,11 +18,13 @@ use pnet::packet::{ Packet,ipv6::Ipv6Packet,
     use crate::globals::{get_container_data, BLACKLIST_MODE};
 use ipnet::Ipv6Net;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
+use std::{sync::{Arc, Mutex},thread::sleep,time::Duration};
 //use crate::utils::ipv6_addr_u8_to_string;
 #[cfg(windows)]
-pub fn the_process() -> Result<(), String> {
- 
+pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
+    use std::thread::sleep;
 
+    
     let filter_cstr=CString::new("icmp6.Type==134").expect("CString::new failed");
     let filter=filter_cstr.as_ptr();
     let layer=WinDivertLayer::Network;
@@ -30,26 +32,23 @@ pub fn the_process() -> Result<(), String> {
     let w=unsafe {WinDivertOpen(filter, layer, 0i16, flags)};
     // 初始化 `WINDIVERT_ADDRESS`
     let mut address = <WINDIVERT_ADDRESS as std::default::Default>::default(); 
-
     let mut packet_buffer=vec![0u8; 65535];
     let mut packet_len=0u32;
 
-
-
     // 设置 Ctrl+C 退出处理
-    ctrlc::set_handler({
-        let handle = w;
-        move || {
-            println!("Ctrl+C detected, cleaning up...");
-            unsafe {
-                WinDivertClose(handle);
-            }
-            println!("WinDivert handle closed. Exiting.");
-            std::process::exit(0);
-        }
-    })
-    .map_err(|_| "Failed to set Ctrl+C handler")?;
-    loop {
+    // ctrlc::set_handler({
+    //     let handle = w;
+    //     move || {
+    //         println!("Ctrl+C detected, cleaning up...");
+    //         unsafe {
+    //             WinDivertClose(handle);
+    //         }
+    //         println!("WinDivert handle closed. Exiting.");
+    //         std::process::exit(0);
+    //     }
+    // })
+    // .map_err(|_| "Failed to set Ctrl+C handler")?;
+    while *stop_flag.lock().unwrap() {
         unsafe {
             let result=WinDivertRecv(
                 w,
@@ -59,7 +58,8 @@ pub fn the_process() -> Result<(), String> {
                 &mut address,
             );
             if result==false {
-                eprintln!("Failed to receive packet.");
+                sleep(Duration::from_millis(1000));
+                //eprintln!("Failed to receive packet.");
                 continue;
             }
 
@@ -168,7 +168,7 @@ pub fn the_process() -> Result<(), String> {
             let ipv6_prefix:Vec<Ipv6Net> = get_container_data();
             let is_prefix_in_list = ipv6_prefix.iter().any(|&prefix| prefix.addr().octets() == pfi.payload());
             let verdict = decide_verdict(blacklist_mode,is_prefix_in_list);
-            if verdict==true{
+            if verdict {
                 unsafe {
                     let _=WinDivertSend(
                         w,
@@ -184,7 +184,10 @@ pub fn the_process() -> Result<(), String> {
             //return verdict;
         }
     }
-
+    unsafe {
+        WinDivertClose(w);
+    }
+    println!("WinDivert handle closed. Exiting.")
 }
 #[cfg(windows)]
 fn decide_verdict(blacklist_mode: bool, is_prefix_in_list: bool) -> bool {
