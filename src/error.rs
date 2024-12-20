@@ -1,3 +1,4 @@
+#[cfg(target_os = "linux")]
 use crate::master::{handle_clear, handle_init};
 use log::{error, info};
 use thiserror::Error;
@@ -29,25 +30,30 @@ pub type Result<T> = std::result::Result<T, AppError>;
 pub fn handle_error(err: AppError) {
     match err {
         AppError::Interrupt => {
+            #[cfg(target_os = "linux")]
             handle_clear();
             println!("Received Ctrl+C, exiting...");
             info!("Program exited cleanly.");
             //程序结束
         }
         AppError::IoError(e) => {
+            #[cfg(target_os = "linux")]
             handle_clear();
             eprintln!("I/O error: {}", e);
         }
         AppError::QueueStartError(msg) => {
             eprintln!("Failed to start queue,try again. Error: {}", msg);
+            #[cfg(target_os = "linux")]
         handle_init(); 
         }
         AppError::QueueProcessError(msg) => {
+            #[cfg(target_os = "linux")]
             handle_clear();
             eprintln!("Queue error: {}", msg);
         }
 
         AppError::Unexpected(msg) => {
+            #[cfg(target_os = "linux")]
             handle_clear();
             eprintln!("Unexpected error: {}", msg);
         } //AppError::_ =>{}

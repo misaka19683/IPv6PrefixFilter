@@ -1,3 +1,4 @@
+#[cfg(target_os = "linux")]
 use nftables::{
     batch::Batch,
     expr::{Expression, NamedExpression, Meta, MetaKey, Payload, PayloadField},
@@ -6,8 +7,9 @@ use nftables::{
     stmt::{Match, Operator, Queue, Statement},
     types::{NfChainPolicy, NfChainType, NfFamily, NfHook},
 };
+#[cfg(target_os = "linux")]
 use crate::globals::{QUEUE_NUM,get_interface_name};
-
+#[cfg(target_os = "linux")]
 fn create_nftables_objects() -> Vec<NfObject> {
     // 创建 IPv6 表和链
     let table = Table {
@@ -70,6 +72,7 @@ fn create_nftables_objects() -> Vec<NfObject> {
 }
 
 // 执行多个 nftables 操作命令
+#[cfg(target_os = "linux")]
 fn apply_nftables_action(action:Action) -> Result<(), Box<dyn std::error::Error>> {
 
     let ruleset = create_nftables_objects();
@@ -98,17 +101,18 @@ fn apply_nftables_action(action:Action) -> Result<(), Box<dyn std::error::Error>
 
     Ok(())
 }
-
+#[cfg(target_os = "linux")]
 enum Action {
     AddAll,
     DeleteAll,
 }
+#[cfg(target_os = "linux")]
 pub fn setup_nftables() -> Result<(), Box<dyn std::error::Error>> {
     apply_nftables_action(Action::AddAll)?;
 
     Ok(())
 }
-
+#[cfg(target_os = "linux")]
 pub fn delete_nftables() -> Result<(), Box<dyn std::error::Error>> {
     apply_nftables_action(Action::DeleteAll)?;
 

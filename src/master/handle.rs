@@ -8,11 +8,12 @@ use crate::globals::{clear_container,clear_interface_name};
 use crate::master::*;
 //use crate::master::queue::{process_queue, start_queue};
 
-
+#[cfg(target_os = "linux")]
 pub fn handle_init(){
     start_queue().unwrap();
 }
 /// 处理`run`命令
+#[cfg(target_os = "linux")]
 pub fn handle_run() {
     // 初始化日志记录
     env_logger::init();
@@ -46,13 +47,25 @@ pub fn handle_run() {
 }
 
 /// 清理操作
+#[cfg(target_os = "linux")]
 pub fn handle_clear() {
     delete_nftables().expect("Failed to clear nftables");
     // clear_interface_name();
     // clear_container();
 }
+#[cfg(target_os = "linux")]
 pub fn handle_end(){
     delete_nftables().expect("Failed to clear nftables");
     clear_interface_name();
     clear_container();
+}
+
+
+
+#[cfg(windows)]
+use windivert_deal::*;
+
+#[cfg(windows)]
+pub fn handle_run() {
+    the_process().unwrap();
 }

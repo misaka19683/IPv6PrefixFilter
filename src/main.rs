@@ -2,8 +2,10 @@ use clap::{Parser, Subcommand};
 //use std::net::Ipv6Addr;
 use ipnet::Ipv6Net;
 // 引用自己的代码
-use IPv6PrefixFilter::{daemon, master::*,globals::*};
+#[cfg(target_os = "linux")]
+use IPv6PrefixFilter::daemon;
 
+use IPv6PrefixFilter::{ master::*,globals::*};
 
 /// 程序的命令行参数结构体
 #[derive(Parser, Debug)]
@@ -77,12 +79,15 @@ fn main() {
     match args.command {
         Some(Commands::Run { ipv6_prefix }) => {
             add_to_container(ipv6_prefix.unwrap());
+            #[cfg(target_os = "linux")]
             handle_run(); // 传递参数给`handle_run`
         }
         Some(Commands::Clear) => {
+            #[cfg(target_os = "linux")]
             handle_clear(); // 传递参数给`handle_clear`
         }
         Some(Commands::Daemon) => {
+            #[cfg(target_os = "linux")]
             daemon::daemon_run().expect("Failed to start daemon."); // 启动守护进程
             println!("Running as daemon.");
         }

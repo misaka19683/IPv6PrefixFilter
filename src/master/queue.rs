@@ -1,5 +1,6 @@
 use log::{debug, info};
 use ipnet::Ipv6Net;
+#[cfg(target_os = "linux")]
 use nfq::{Queue, Verdict};
 use std::{sync::{Arc, Mutex}, thread::sleep, time::Duration};
 use pnet::packet::{ Packet,ipv6::Ipv6Packet,
@@ -10,7 +11,7 @@ use crate::error::AppError;
 use crate::globals::{get_container_data, QUEUE_NUM, BLACKLIST_MODE};
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use crate::utils::ipv6_addr_u8_to_string;
-
+#[cfg(target_os = "linux")]
 /// 启动队列监听器
 pub fn start_queue() -> std::result::Result<Queue, AppError> {
     let mut queue = Queue::open().map_err(|e| AppError::QueueStartError(e.to_string()))?; // 打开 NFQUEUE
@@ -22,7 +23,7 @@ pub fn start_queue() -> std::result::Result<Queue, AppError> {
         .map_err(|e| AppError::QueueStartError(e.to_string()))?; // 队列满时拒绝数据包
     Ok(queue)
 }
-
+#[cfg(target_os = "linux")]
 pub fn process_queue(queue: &mut Queue, stop_flag: Arc<Mutex<bool>>,) 
     -> std::result::Result<(), AppError> {
 
@@ -47,7 +48,7 @@ pub fn process_queue(queue: &mut Queue, stop_flag: Arc<Mutex<bool>>,)
     }
     Err(AppError::Interrupt)
 }
-
+#[cfg(target_os = "linux")]
 /// 处理数据包
 fn handle_packet(data: &[u8]) -> Verdict {
     //获取全局变量ipv6_prefix
@@ -113,6 +114,7 @@ fn handle_packet(data: &[u8]) -> Verdict {
     }
     Verdict::Accept
 }
+#[cfg(target_os = "linux")]
 fn decide_verdict(blacklist_mode: bool, is_prefix_in_list: bool) -> Verdict {
         match (blacklist_mode, is_prefix_in_list) {
             (false, true) => Verdict::Accept,
@@ -120,6 +122,7 @@ fn decide_verdict(blacklist_mode: bool, is_prefix_in_list: bool) -> Verdict {
             _ => Verdict::Drop,
         }
 }
+#[cfg(target_os = "linux")]
 fn log_and_return(verdict: Verdict, prefix: &str) {
     match verdict {
         Verdict::Accept => info!("Accepted prefix {}!", prefix),
@@ -143,3 +146,4 @@ fn log_and_return(verdict: Verdict, prefix: &str) {
         // }
         //let blacklist_mode:bool = *BLACKLIST_MODE.lock().unwrap();
         //let blacklist_mode:bool;
+
