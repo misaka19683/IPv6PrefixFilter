@@ -1,0 +1,39 @@
+name: Rust MSVC Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 设置 Rust 环境
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable-x86_64-pc-windows-msvc
+          override: true
+
+      # 安装必要的构建工具
+      - name: Install MSVC Build Tools
+        run: |
+          choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional"
+
+      # 设置环境变量
+      - name: Set WINDIVERT_PATH
+        run: echo WINDIVERT_PATH=${{ github.workspace }}\\lib\\windivert\\x64 >> $env:GITHUB_ENV
+
+      # 构建项目
+      - name: Build with Cargo
+        run: cargo build --release
