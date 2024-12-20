@@ -38,8 +38,7 @@ Options:
     -p, --prefix            Specify the allowed IPv6 prefixes. Multiple prefixes can be allowed by repeating the `-p` option.
     -i, --interface         Specify the interface.
     -b, --blacklist-mode    Enable blacklist mode. Prefixes specified with `-p` will be blocked.
-    -v, --verbose           Display detailed runtime information.
-    -d, --daemon            Run the program in the background as a daemon.
+    -v, --verbose           Display detailed runtime information. The default log level is warning. Use -v to set to info, and -vv for debug.
     -h, --help              Display this help menu.
     --disable-nft-autoset   Disable the feature of auto set nftables rules.
 ```
