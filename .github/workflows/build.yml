@@ -32,14 +32,21 @@ jobs:
 
       # 设置环境变量
       - name: Set WINDIVERT_PATH
-        run: echo WINDIVERT_PATH=${{ github.workspace }}\\lib\\windivert\\x64 >> $env:GITHUB_ENV
+        run: echo WINDIVERT_PATH=${{ github.workspace }}\lib\windivert\x64 >> $env:GITHUB_ENV
 
       - name: Append to LIB environment variable
-        run: echo LIB=%LIB%;${{ github.workspace }}\\lib\\WpdPack\\x64 >> $env:GITHUB_ENV
+        run: echo LIB=%LIB%;${{ github.workspace }}\lib\WpdPack\x64 >> $env:GITHUB_ENV
 
       # 构建项目
       - name: Build with Cargo
         run: cargo build --release
+
+      # 上传构建结果
+      - name: Upload Windows Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-build
+          path: target/x86_64-pc-windows-msvc/release/ICMPv6RAFilter.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -68,3 +75,10 @@ jobs:
       # 构建项目
       - name: Build with Cargo
         run: cargo build --release --target x86_64-unknown-linux-musl
+
+      # 上传构建结果
+      - name: Upload Linux Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-build
+          path: target/x86_64-unknown-linux-musl/release/ICMPv6RAFilter
