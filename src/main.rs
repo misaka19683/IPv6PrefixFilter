@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use env_logger;
 use env_logger::{Builder, Target};
 use ipnet::Ipv6Net;
-use log::{debug, info};
+use log::{debug, info, warn};
 
 // 引用自己的代码
 #[cfg(target_os = "linux")]
@@ -99,12 +99,17 @@ fn main() {
             if let Some(interface)= interface{
                 set_interface_name(interface);
             };
+            if blacklist_mode{
+                let mut flag=BLACKLIST_MODE.lock().unwrap();
+                *flag=true;
+            }
 
-            // TODO: Add blacklist_mode to global.
-
-            // TODO: disable_nft_autoset
-
-            handle_run();
+            #[cfg(target_os = "linux")]
+            handle_run(disable_nft_autoset);
+            #[cfg(windows)]
+            if disable_nft_autoset{
+                warn!("The disable_nft_autoset option is not supported on Windows.");
+            }else{handle_run();}
         }
         Some(Commands::Clear) => {
             #[cfg(target_os = "linux")]

@@ -19,14 +19,18 @@ use pnet::packet::{ Packet,ipv6::Ipv6Packet,
 use ipnet::Ipv6Net;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use std::{sync::{Arc, Mutex},thread::sleep,time::Duration};
-//use crate::utils::ipv6_addr_u8_to_string;
+use crate::utils::ipv6_addr_u8_to_string;
+use log::{info,debug};
+
 #[cfg(windows)]
 pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
+    
 
-    let filter_cstr=CString::new("icmp6.Type==134").expect("CString::new failed");
+    let filter_cstr=CString::new("true").expect("CString::new failed");
+    //let filter_cstr=CString::new("icmp6.Type==134").expect("CString::new failed");
     let filter=filter_cstr.as_ptr();
     let layer=WinDivertLayer::Network;
-    let flags=WinDivertFlags::new().set_sniff();
+    let flags=WinDivertFlags::new();
     let w=unsafe {WinDivertOpen(filter, layer, 0i16, flags)};
     // 初始化 `WINDIVERT_ADDRESS`
     let mut address = <WINDIVERT_ADDRESS as std::default::Default>::default(); 
@@ -35,6 +39,7 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
 
     while *stop_flag.lock().unwrap() {
         unsafe {
+            //println!("Waiting for packets...");
             let result=WinDivertRecv(
                 w,
                 packet_buffer.as_mut_ptr() as *mut _,
@@ -43,11 +48,12 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
                 &mut address,
             );
             if result==false {
-                sleep(Duration::from_millis(1000));
-                //eprintln!("Failed to receive packet.");
+                sleep(Duration::from_millis(100));
+                debug!("Failed to receive packet.");
                 continue;
             }
         }
+        // debug!("Received a packet.");
         let packet_data=&packet_buffer[..packet_len as usize];
         let ipv6_packet=match Ipv6Packet::new(packet_data) {
             Some(thepacket)=> thepacket,
@@ -64,6 +70,7 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
                 continue;
             }
         };
+        debug!("It's an IPv6 packet.");
         let icmpv6_packet=match Icmpv6Packet::new(ipv6_packet.payload()) {
             Some(thepacket)=> thepacket,
             None=> {
@@ -79,6 +86,7 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
                 continue;
             },
         };
+        debug!("It's an ICMPv6 packet.");
         if icmpv6_packet.get_icmpv6_type() != RouterAdvert {
             //debug!("It's not a RouterAdvert packet!");
             unsafe {
@@ -92,6 +100,7 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
             }
             continue;
         }
+        debug!("It's a RouterAdvert packet.");
         let ra_packet = match RouterAdvertPacket::new(icmpv6_packet.packet()) {
             Some(packet) => packet,
             None => {
@@ -107,6 +116,7 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
                 continue;
             },
         };
+        debug!("It's a RouterAdvert packet with options.");
         for op in ra_packet.get_options() {
             if op.option_type != PrefixInformation {
                 unsafe {
@@ -139,8 +149,8 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
                     continue;
                 }
             };
-            //let pkt_prefix_str = ipv6_addr_u8_to_string(pfi.payload());
-            //debug!("IPv6 Prefix in packet is {}", pkt_prefix_str);
+            let pkt_prefix_str = ipv6_addr_u8_to_string(pfi.payload());
+            info!("IPv6 Prefix in packet is {}", pkt_prefix_str);
            
             let blacklist_mode = match BLACKLIST_MODE.lock() {//读取全局变量-黑名单模式
                 Ok(guard)=> *guard,
@@ -162,7 +172,10 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
                         &mut address,
                     );
                 }
+                info!("Packet is allowed.");
                 continue;
+            }else {
+                info!("Packet is not allowed.");
             }
             //log_and_return(verdict, &pkt_prefix_str);
             //return verdict;

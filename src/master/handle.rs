@@ -20,17 +20,20 @@ pub fn handle_init(){
 }
 /// 处理`run`命令
 #[cfg(target_os = "linux")]
-pub fn handle_run() {
+pub fn handle_run(disable_nft_autoset:bool) {
     info!("IPv6PrefixFilter start running on Linux...");
     
     // 设置退出信号捕获
     // let running = Arc::new(AtomicBool::new(true));
     let stop_flag = Arc::new(Mutex::new(true));
 
-    // 初始化 nftables
-    info!("Setting up nftables...");
-    setup_nftables().expect("Failed to set up nftables");
-
+    if disable_nft_autoset {
+        warn!("nftables rule set is not enabled, please set nftables rules manually");
+    }else {
+        // 初始化 nftables
+        info!("Setting up nftables...");
+        setup_nftables().expect("Failed to set up nftables");
+    }
     // 启动队列监听器
     info!("Starting NFQUEUE listen...");
     let mut queue = start_queue().expect("Failed to start NFQUEUE");
