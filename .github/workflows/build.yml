@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: windows-build
-          path: target/x86_64-pc-windows-msvc/release/
+          path: target/x86_64-pc-windows-msvc/release/IPv6PrefixFilter.exe
 
   build-linux:
     runs-on: ubuntu-22.04
