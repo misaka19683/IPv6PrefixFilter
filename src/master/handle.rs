@@ -1,5 +1,5 @@
 use log::{info,warn,debug};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 use crate::master::*;
 
@@ -10,7 +10,6 @@ use windivert_deal::*;
 use crate::error::handle_error;
 #[cfg(target_os = "linux")]
 use crate::globals::{clear_container,clear_interface_name};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 //use crate::master::queue::{process_queue, start_queue};
 
@@ -59,13 +58,12 @@ pub fn handle_run(disable_nft_autoset:bool) {
 pub fn handle_run() {
     info!("IPv6PrefixFilter start running on Windows...");
 
-    let stop_flag = Arc::new(Mutex::new(true));
+    let stop_flag = Arc::new(AtomicBool::new(true));
     {
         let stop_flag = Arc::clone(&stop_flag);
         ctrlc::set_handler(move || {
             println!("Caught Ctrl+C, throwing interrupted error...");
-            let mut stop_flag = stop_flag.lock().unwrap();
-            *stop_flag = false; // 设置 stop_flag，允许处理程序退出
+            stop_flag.store(false, Ordering::SeqCst); // 设置 stop_flag，允许处理程序退出
         })
         .expect("Error setting Ctrl+C handler");
     }

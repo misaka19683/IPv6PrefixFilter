@@ -18,7 +18,7 @@ use pnet::packet::{ Packet,ipv6::Ipv6Packet,
     use crate::globals::{get_container_data, BLACKLIST_MODE};
 use ipnet::Ipv6Net;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
-use std::{sync::{Arc, Mutex,atomic::Ordering},thread::sleep,time::Duration};
+use std::{sync::{Arc, atomic::{AtomicBool,Ordering}},thread::sleep,time::Duration};
 use crate::utils::ipv6_addr_u8_to_string;
 use log::{info,debug};
 
