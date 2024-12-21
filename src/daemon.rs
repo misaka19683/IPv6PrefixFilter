@@ -27,7 +27,7 @@ pub fn daemon_run() -> io::Result<()> {
     match daemonize.start() {
         Ok(_) => {
             // 调用程序主体函数
-            handle_run();
+            handle_run(true);
             // 如果 handle_run 返回，这里将被执行
             handle_clear();
         },
