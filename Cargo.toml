@@ -44,3 +44,6 @@ lto = true
 codegen-units = 1
 incremental = false
 panic = "abort"
+
+[build]
+rustflags = ["-Ctarget-feature=+crt-static"]
