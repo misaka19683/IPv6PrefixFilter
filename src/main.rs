@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
-//use std::net::Ipv6Addr;
+use env_logger;
+use env_logger::{Builder, Target};
 use ipnet::Ipv6Net;
-use log::debug;
+use log::{debug, info};
+
 // 引用自己的代码
 #[cfg(target_os = "linux")]
 use IPv6PrefixFilter::daemon;
@@ -28,8 +30,8 @@ pub struct Args {
     blacklist_mode: bool,
 
     /// Display detailed runtime information. The default log level is warning. Use -v to set to info, and -vv for debug.
-    #[arg(short = 'v', long)]
-    verbose: bool,
+    #[arg(short = 'v', long, action = clap::ArgAction::Count)]
+    verbose: u8,
 
     /// Disable the feature of auto set nftables rules.
     #[arg(long = "disable-nft-autoset")]
@@ -64,11 +66,22 @@ pub enum Commands {
 }
 
 fn main() {
-    // 初始化日志记录
-    env_logger::init();
-
     // 解析命令行参数
     let args = Args::parse();
+
+    // 初始化日志记录
+    match args.verbose {
+        0 => env_logger::init(),
+        1 => {
+            Builder::new().filter_level(log::LevelFilter::Info).target(Target::Stdout).init();
+            info!("Logging level has been set to info.")
+        },
+        _ => {
+            Builder::new().filter_level(log::LevelFilter::Debug).target(Target::Stdout).init();
+            debug!("Logging level has been set to info.")
+        }
+    };
+    
     let prefixs=args.ipv6_prefixes;
 
     for prefix in prefixs.iter() {

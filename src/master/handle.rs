@@ -1,4 +1,3 @@
-use env_logger;
 use log::{info,warn,debug};
 use std::sync::{Arc, Mutex};
 
