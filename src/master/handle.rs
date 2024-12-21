@@ -2,8 +2,9 @@ use env_logger;
 use log::{info,warn,debug};
 use std::sync::{Arc, Mutex};
 
-
+#[cfg(target_os = "linux")]
 use crate::error::handle_error;
+#[cfg(target_os = "linux")]
 use crate::globals::{clear_container,clear_interface_name};
 use crate::master::*;
 //use crate::master::queue::{process_queue, start_queue};
@@ -70,8 +71,10 @@ pub fn handle_run() {
     // if let Err(e) = the_process() {
     //     eprintln!("Error: {}", e);
     // }
+    env_logger::init();
     info!("run");
     debug!("debug_run");
+    warn!("run");
     let stop_flag = Arc::new(Mutex::new(true));
 
     {

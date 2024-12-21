@@ -22,9 +22,7 @@ use std::{sync::{Arc, Mutex},thread::sleep,time::Duration};
 //use crate::utils::ipv6_addr_u8_to_string;
 #[cfg(windows)]
 pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
-    use std::thread::sleep;
 
-    
     let filter_cstr=CString::new("icmp6.Type==134").expect("CString::new failed");
     let filter=filter_cstr.as_ptr();
     let layer=WinDivertLayer::Network;
@@ -35,19 +33,6 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
     let mut packet_buffer=vec![0u8; 65535];
     let mut packet_len=0u32;
 
-    // 设置 Ctrl+C 退出处理
-    // ctrlc::set_handler({
-    //     let handle = w;
-    //     move || {
-    //         println!("Ctrl+C detected, cleaning up...");
-    //         unsafe {
-    //             WinDivertClose(handle);
-    //         }
-    //         println!("WinDivert handle closed. Exiting.");
-    //         std::process::exit(0);
-    //     }
-    // })
-    // .map_err(|_| "Failed to set Ctrl+C handler")?;
     while *stop_flag.lock().unwrap() {
         unsafe {
             let result=WinDivertRecv(
@@ -62,7 +47,6 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
                 //eprintln!("Failed to receive packet.");
                 continue;
             }
-
         }
         let packet_data=&packet_buffer[..packet_len as usize];
         let ipv6_packet=match Ipv6Packet::new(packet_data) {
@@ -184,9 +168,7 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
             //return verdict;
         }
     }
-    unsafe {
-        WinDivertClose(w);
-    }
+    unsafe {WinDivertClose(w);}
     println!("WinDivert handle closed. Exiting.")
 }
 #[cfg(windows)]
