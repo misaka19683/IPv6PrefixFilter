@@ -12,7 +12,7 @@ use pnet::packet::{
     Packet,
 };
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex,atomic:: Ordering},
     thread::sleep,
     time::Duration,
 };
@@ -115,14 +115,7 @@ fn handle_packet(data: &[u8]) -> Verdict {
         let pkt_prefix_str = ipv6_addr_u8_to_string(pfi.payload());
         info!("Recived an IPv6 Prefix: {}", pkt_prefix_str);
 
-        let blacklist_mode = match BLACKLIST_MODE.lock() {
-            //读取全局变量-黑名单模式
-            Ok(guard) => *guard,
-            Err(e) => {
-                log::error!("Failed to acquire lock for BLACKLIST_MODE: {}", e);
-                false
-            }
-        };
+        let blacklist_mode =  BLACKLIST_MODE.load(Ordering::SeqCst) ;
 
         let is_prefix_in_list = ipv6_prefix
             .iter()

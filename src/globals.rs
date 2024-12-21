@@ -1,11 +1,11 @@
 use once_cell::sync::Lazy;
-use std::sync::Mutex;
+use std::sync::{atomic::AtomicBool, Mutex};
 use ipnet::Ipv6Net;
 use pnet::datalink::{interfaces,NetworkInterface};
 //{interfaces, NetworkInterface};
 // 全局变量定义
 pub static QUEUE_NUM: u16 = 0;
-pub static BLACKLIST_MODE: Mutex<bool> = Mutex::new(false);
+pub static BLACKLIST_MODE: AtomicBool = AtomicBool::new(false);
 pub static GLOBAL_CONTAINER: Lazy<Mutex<Vec<Ipv6Net>>> = Lazy::new(|| Mutex::new(Vec::new()));
 pub static INTERFACE_NAME: Lazy<Mutex<Option<NetworkInterface>>> = Lazy::new(|| Mutex::new(None));
 

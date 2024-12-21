@@ -18,7 +18,7 @@ use pnet::packet::{ Packet,ipv6::Ipv6Packet,
     use crate::globals::{get_container_data, BLACKLIST_MODE};
 use ipnet::Ipv6Net;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
-use std::{sync::{Arc, Mutex},thread::sleep,time::Duration};
+use std::{sync::{Arc, Mutex,atomic::Ordering},thread::sleep,time::Duration};
 use crate::utils::ipv6_addr_u8_to_string;
 use log::{info,debug};
 
@@ -152,13 +152,8 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
             let pkt_prefix_str = ipv6_addr_u8_to_string(pfi.payload());
             info!("IPv6 Prefix in packet is {}", pkt_prefix_str);
            
-            let blacklist_mode = match BLACKLIST_MODE.lock() {//读取全局变量-黑名单模式
-                Ok(guard)=> *guard,
-                Err(e)=>{
-                    eprint!("Failed to acquire lock for BLACKLIST_MODE: {}", e);
-                    false
-                },
-            };
+            let blacklist_mode = BLACKLIST_MODE.load(Ordering::SeqCst); //读取全局变量-黑名单模式
+
             let ipv6_prefix:Vec<Ipv6Net> = get_container_data();
             let is_prefix_in_list = ipv6_prefix.iter().any(|&prefix| prefix.addr().octets() == pfi.payload());
             let verdict = decide_verdict(blacklist_mode,is_prefix_in_list);

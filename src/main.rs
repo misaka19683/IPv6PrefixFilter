@@ -3,7 +3,7 @@ use env_logger;
 use env_logger::{Builder, Target};
 use ipnet::Ipv6Net;
 use log::{debug, info, warn};
-
+use std::sync::atomic::Ordering;
 // 引用自己的代码
 #[cfg(target_os = "linux")]
 use IPv6PrefixFilter::daemon;
@@ -99,10 +99,7 @@ fn main() {
             if let Some(interface)= interface{
                 set_interface_name(interface);
             };
-            if blacklist_mode{
-                let mut flag=BLACKLIST_MODE.lock().unwrap();
-                *flag=true;
-            }
+            if blacklist_mode{BLACKLIST_MODE.store(true, Ordering::SeqCst);}
 
             #[cfg(target_os = "linux")]
             handle_run(disable_nft_autoset);
