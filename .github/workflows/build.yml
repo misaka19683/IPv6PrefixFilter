@@ -39,7 +39,7 @@ jobs:
         run: echo "WINDIVERT_PATH=${{ github.workspace }}\lib\windivert\x64" >> $env:GITHUB_ENV
 
       - name: Append to LIB environment variable
-        run: echo "LIB=%LIB%;${{ github.workspace }}\lib\WpdPack\x64" >> $env:GITHUB_ENV
+        run: echo "LIB=%LIB%;${{ github.workspace }}\lib\npcap-sdk-1.13\Lib\x64" >> $env:GITHUB_ENV
 
       # 构建项目
       - name: Build with Cargo
@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: windows-build
-          path: target/x86_64-pc-windows-msvc/release/IPv6PrefixFilter.exe
+          path: target/x86_64-pc-windows-msvc/release/
 
   build-linux:
     runs-on: ubuntu-22.04
