@@ -1,6 +1,4 @@
-#[cfg(target_os = "linux")]
-use log::warn;
-use log::{info,debug};
+use log::{info,warn,debug};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 use crate::master::*;
@@ -44,8 +42,8 @@ pub fn handle_run(disable_nft_autoset:bool) {
         let stop_flag = Arc::clone(&stop_flag);
         ctrlc::set_handler(move || {
             warn!("Caught Ctrl+C, throwing interrupted error...");
-            let mut stop_flag = stop_flag.store(false, Ordering::SeqCst);
-            //*stop_flag = false; // 设置 stop_flag，允许处理程序退出
+            stop_flag.store(false, Ordering::SeqCst); // 设置 stop_flag，允许处理程序退出
+            debug!("Setting stop_flag to false");
         })
         .expect("Error setting Ctrl+C handler");
     }
@@ -64,7 +62,7 @@ pub fn handle_run() {
     {
         let stop_flag = Arc::clone(&stop_flag);
         ctrlc::set_handler(move || {
-            println!("Caught Ctrl+C, throwing interrupted error...");
+            warn!("Caught Ctrl+C, throwing interrupted error...");
             stop_flag.store(false, Ordering::SeqCst); // 设置 stop_flag，允许处理程序退出
         })
         .expect("Error setting Ctrl+C handler");

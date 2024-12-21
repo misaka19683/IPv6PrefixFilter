@@ -78,15 +78,6 @@ fn main() {
             debug!("Logging level has been set to info.")
         }
     };
-
-    // if let black_prefixes=args.blacklist_mode_prefixes{
-    //     let mut flag=BLACKLIST_MODE.lock().unwrap();
-    //     *flag=true;
-    //     for prefix in black_prefixes.iter(){
-    //         add_to_container(*prefix);
-    //     }
-    // }
-
     // 根据命令执行不同操作
     match args.command {
         Some(Commands::Run { ipv6_prefixs, interface, blacklist_mode, disable_nft_autoset}) => {
@@ -110,6 +101,7 @@ fn main() {
         }
         Some(Commands::Clear) => {
             #[cfg(target_os = "linux")]
+            warn!("Only supported on Linux.");
             handle_clear(); // 传递参数给`handle_clear`
         }
         Some(Commands::Daemon) => {
