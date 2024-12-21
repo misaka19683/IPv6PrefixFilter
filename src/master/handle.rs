@@ -40,7 +40,7 @@ pub fn handle_run() {
     {
         let stop_flag = Arc::clone(&stop_flag);
         ctrlc::set_handler(move || {
-            println!("Caught Ctrl+C, throwing interrupted error...");
+            warn!("Caught Ctrl+C, throwing interrupted error...");
             let mut stop_flag = stop_flag.lock().unwrap();
             *stop_flag = false; // 设置 stop_flag，允许处理程序退出
         })
@@ -48,7 +48,7 @@ pub fn handle_run() {
     }
 
     match process_queue(&mut queue, stop_flag) {
-        Ok(_) => info!("Queue processing completed successfully."),
+        Ok(_) => {},
         Err(e) => handle_error(e),
     }
 }
