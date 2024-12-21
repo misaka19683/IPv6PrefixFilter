@@ -41,6 +41,7 @@ pub struct Args {
 pub enum Commands {
     /// Run the program (in the foreground).
     Run {
+        /// Specify the allowed IPv6 prefixes. Multiple prefixes can be allowed by repeating the `-p` option.
         #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Net))]
         ipv6_prefix: Option<Ipv6Net>,
     },
@@ -63,13 +64,17 @@ pub enum Commands {
 }
 
 fn main() {
+    // 初始化日志记录
+    env_logger::init();
+
     // 解析命令行参数
-    println!("IPv6PrefixFilter");
     let args = Args::parse();
     let prefixs=args.ipv6_prefixes;
+
     for prefix in prefixs.iter() {
         add_to_container(*prefix);
     }
+
     if let Some(interface)= args.interface{
         set_interface_name(interface);
     };
@@ -89,16 +94,6 @@ fn main() {
 
             debug!("Running with prefix: {}", ipv6_prefix.unwrap());
             add_to_container(ipv6_prefix.unwrap());
-
-            #[cfg(target_os = "linux")]
-            debug!("linux handle_run");
-            #[cfg(target_os = "linux")]
-            handle_run(); // 传递参数给`handle_run`
-
-            #[cfg(windows)]
-            debug!("windows handle_run");
-            println!("Running with prefix");
-            #[cfg(windows)]
             handle_run();
         }
         Some(Commands::Clear) => {

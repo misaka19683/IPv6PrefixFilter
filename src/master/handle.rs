@@ -2,11 +2,17 @@ use env_logger;
 use log::{info,warn,debug};
 use std::sync::{Arc, Mutex};
 
+use crate::master::*;
+
+#[cfg(windows)]
+use windivert_deal::*;
+
 #[cfg(target_os = "linux")]
 use crate::error::handle_error;
 #[cfg(target_os = "linux")]
 use crate::globals::{clear_container,clear_interface_name};
-use crate::master::*;
+
+
 //use crate::master::queue::{process_queue, start_queue};
 
 #[cfg(target_os = "linux")]
@@ -16,8 +22,8 @@ pub fn handle_init(){
 /// 处理`run`命令
 #[cfg(target_os = "linux")]
 pub fn handle_run() {
-    // 初始化日志记录
-    env_logger::init();
+    info!("IPv6PrefixFilter start running on Linux...");
+    
     // 设置退出信号捕获
     // let running = Arc::new(AtomicBool::new(true));
     let stop_flag = Arc::new(Mutex::new(true));
@@ -47,36 +53,11 @@ pub fn handle_run() {
     }
 }
 
-/// 清理操作
-#[cfg(target_os = "linux")]
-pub fn handle_clear() {
-    delete_nftables().expect("Failed to clear nftables");
-    // clear_interface_name();
-    // clear_container();
-}
-#[cfg(target_os = "linux")]
-pub fn handle_end(){
-    delete_nftables().expect("Failed to clear nftables");
-    clear_interface_name();
-    clear_container();
-}
-
-
-
-#[cfg(windows)]
-use windivert_deal::*;
-
 #[cfg(windows)]
 pub fn handle_run() {
-    // if let Err(e) = the_process() {
-    //     eprintln!("Error: {}", e);
-    // }
-    env_logger::init();
-    info!("run");
-    debug!("debug_run");
-    warn!("run");
-    let stop_flag = Arc::new(Mutex::new(true));
+    info!("IPv6PrefixFilter start running on Windows...");
 
+    let stop_flag = Arc::new(Mutex::new(true));
     {
         let stop_flag = Arc::clone(&stop_flag);
         ctrlc::set_handler(move || {
@@ -89,4 +70,18 @@ pub fn handle_run() {
     info!("start_deal");
     debug!("debug_start_deal");
     the_process(stop_flag);
+}
+
+/// 清理操作
+#[cfg(target_os = "linux")]
+pub fn handle_clear() {
+    delete_nftables().expect("Failed to clear nftables");
+    // clear_interface_name();
+    // clear_container();
+}
+#[cfg(target_os = "linux")]
+pub fn handle_end(){
+    delete_nftables().expect("Failed to clear nftables");
+    clear_interface_name();
+    clear_container();
 }
