@@ -10,7 +10,7 @@ use windivert_deal::*;
 use crate::error::handle_error;
 #[cfg(target_os = "linux")]
 use crate::globals::{clear_container,clear_interface_name};
-
+use std::sync::atomic::{AtomicBool, Ordering};
 
 //use crate::master::queue::{process_queue, start_queue};
 
@@ -25,7 +25,7 @@ pub fn handle_run(disable_nft_autoset:bool) {
     
     // 设置退出信号捕获
     // let running = Arc::new(AtomicBool::new(true));
-    let stop_flag = Arc::new(Mutex::new(true));
+    let stop_flag = Arc::new(AtomicBool::new(true));
 
     if disable_nft_autoset {
         warn!("nftables rule set is not enabled, please set nftables rules manually");
@@ -43,8 +43,8 @@ pub fn handle_run(disable_nft_autoset:bool) {
         let stop_flag = Arc::clone(&stop_flag);
         ctrlc::set_handler(move || {
             warn!("Caught Ctrl+C, throwing interrupted error...");
-            let mut stop_flag = stop_flag.lock().unwrap();
-            *stop_flag = false; // 设置 stop_flag，允许处理程序退出
+            let mut stop_flag = stop_flag.store(false, Ordering::SeqCst);
+            //*stop_flag = false; // 设置 stop_flag，允许处理程序退出
         })
         .expect("Error setting Ctrl+C handler");
     }

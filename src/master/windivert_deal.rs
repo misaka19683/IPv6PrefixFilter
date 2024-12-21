@@ -23,7 +23,7 @@ use crate::utils::ipv6_addr_u8_to_string;
 use log::{info,debug};
 
 #[cfg(windows)]
-pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
+pub fn the_process(stop_flag:Arc<AtomicBool>)  {
     
 
     let filter_cstr=CString::new("true").expect("CString::new failed");
@@ -37,7 +37,7 @@ pub fn the_process(stop_flag:Arc<Mutex<bool>>)  {
     let mut packet_buffer=vec![0u8; 65535];
     let mut packet_len=0u32;
 
-    while *stop_flag.lock().unwrap() {
+    while stop_flag.load(Ordering::SeqCst) {
         unsafe {
             //println!("Waiting for packets...");
             let result=WinDivertRecv(

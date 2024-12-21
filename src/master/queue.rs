@@ -12,7 +12,7 @@ use pnet::packet::{
     Packet,
 };
 use std::{
-    sync::{Arc, Mutex,atomic:: Ordering},
+    sync::{Arc,atomic::{AtomicBool,Ordering}},
     thread::sleep,
     time::Duration,
 };
@@ -34,13 +34,11 @@ pub fn start_queue() -> std::result::Result<Queue, AppError> {
     Ok(queue)
 }
 #[cfg(target_os = "linux")]
-pub fn process_queue(
-    queue: &mut Queue,
-    stop_flag: Arc<Mutex<bool>>,
-) -> std::result::Result<(), AppError> {
+pub fn process_queue(queue: &mut Queue,stop_flag: Arc<AtomicBool>,)
+ -> std::result::Result<(), AppError> {
     // 设置队列为非阻塞
     queue.set_nonblocking(true);
-    while *stop_flag.lock().unwrap() {
+    while stop_flag.load(Ordering::SeqCst) {
         match queue.recv() {
             Ok(mut msg) => {
                 let data = msg.get_payload();
