@@ -102,6 +102,7 @@ fn main() {
         Some(Commands::Clear) => {
             #[cfg(target_os = "linux")]
             warn!("Only supported on Linux.");
+            #[cfg(target_os = "linux")]
             handle_clear(); // 传递参数给`handle_clear`
         }
         Some(Commands::Daemon) => {
