@@ -1,4 +1,6 @@
-use log::{info,warn,debug};
+#[cfg(target_os = "linux")]
+use log::warn;
+use log::{info,debug};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 
 use crate::master::*;
