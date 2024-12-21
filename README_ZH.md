@@ -69,3 +69,10 @@ sudo apt-get install musl-tools
 ```shell
 rustup target add x86_64-unknown-linux-musl
 ```
+
+
+临时指令
+
+```shell
+cargo build --release --target=x86_64-pc-windows-msvc
+```
