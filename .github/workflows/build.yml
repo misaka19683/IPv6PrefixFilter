@@ -25,7 +25,7 @@ jobs:
           toolchain: stable-x86_64-pc-windows-msvc
           override: true
 
-      # 安装必要的构建工具
+      # 安装必要的构建工具 (看起来不用安装，自带MSVC2022)
       # - name: Install MSVC Build Tools
       #   run: |
       #     choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional"
