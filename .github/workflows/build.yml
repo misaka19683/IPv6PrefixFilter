@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       # 检出代码
@@ -26,14 +26,14 @@ jobs:
           override: true
 
       # 安装必要的构建工具
-      - name: Install MSVC Build Tools
-        run: |
-          choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional"
+      # - name: Install MSVC Build Tools
+      #   run: |
+      #     choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional"
 
       # 设置环境变量
       - name: Set up MSVC environment
         run: |
-          "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+          "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
 
       - name: Set WINDIVERT_PATH
         run: echo "WINDIVERT_PATH=${{ github.workspace }}\lib\windivert\x64" >> $env:GITHUB_ENV
@@ -53,7 +53,7 @@ jobs:
           path: target/x86_64-pc-windows-msvc/release/IPv6PrefixFilter.exe
 
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       # 检出代码
