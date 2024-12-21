@@ -67,7 +67,7 @@ fn handle_packet(data: &[u8]) -> Verdict {
     // 尝试解析 IPv6 包
     let ipv6_packet = match Ipv6Packet::new(data) {
         Some(packet) => {
-            debug!("It's a IPv6 packet!");
+            debug!("Recived an IPv6 packet!");
             packet
         }
         None => return Verdict::Accept,
@@ -76,7 +76,7 @@ fn handle_packet(data: &[u8]) -> Verdict {
     // 尝试解析 ICMPv6 包
     let icmp6_packet = match Icmpv6Packet::new(ipv6_packet.payload()) {
         Some(packet) => {
-            debug!("It's a ICMPv6 packet!");
+            debug!("It's an ICMPv6 packet!");
             packet
         }
         None => return Verdict::Accept,
@@ -88,11 +88,9 @@ fn handle_packet(data: &[u8]) -> Verdict {
         return Verdict::Accept;
     }
 
-    debug!("Received ICMPv6 Router Advertisement!");
-
     // 获取 RouterAdvertPacket 对象
     let ra_packet = match RouterAdvertPacket::new(icmp6_packet.packet()) {
-        Some(packet) => packet,
+        Some(packet) => {debug!("Received an ICMPv6 Router Advertisement!"); packet},
         None => return Verdict::Accept,
     };
 
@@ -115,13 +113,13 @@ fn handle_packet(data: &[u8]) -> Verdict {
 
         // 获取 数据包中的 IPv6 前缀（字符串）
         let pkt_prefix_str = ipv6_addr_u8_to_string(pfi.payload());
-        debug!("IPv6 Prefix in packet is {}", pkt_prefix_str);
+        info!("Recived an IPv6 Prefix: {}", pkt_prefix_str);
 
         let blacklist_mode = match BLACKLIST_MODE.lock() {
             //读取全局变量-黑名单模式
             Ok(guard) => *guard,
             Err(e) => {
-                eprint!("Failed to acquire lock for BLACKLIST_MODE: {}", e);
+                log::error!("Failed to acquire lock for BLACKLIST_MODE: {}", e);
                 false
             }
         };
@@ -137,5 +135,6 @@ fn handle_packet(data: &[u8]) -> Verdict {
         };
         return verdict;
     }
+    debug!("No PrefixInformation was found in packet.");
     return Verdict::Accept;
 }
