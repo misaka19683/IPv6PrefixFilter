@@ -70,11 +70,22 @@ pub fn get_lan_ipv6_addresses(mac:&MacAddr) -> Option<Vec<Ipv6Net>> {
     read_guard.get(mac).cloned()
 }
 
-pub fn get_all_lan_ipv6_addresses() -> Vec<(MacAddr,Vec<Ipv6Net>)> {
-    let read_guard = LAN_IPV6_ADDRESSES_LIST.read().unwrap();
-    read_guard.iter().map(|(mac, ipv6_networks)| (mac.clone(), ipv6_networks.clone()) ).collect()
+pub fn get_all_lan_ipv6_addresses() -> Vec<Ipv6Net> {
+    let read_guard = LAN_IPV6_ADDRESSES_LIST.read().unwrap().clone();
+    // read_guard.iter().map(|(mac, ipv6_networks)| (mac.clone(), ipv6_networks.clone()) ).collect()
+    //read_guard.into_values().map(|x| x.clone()).flatten().collect()
+    read_guard.values().flat_map(|x|x.clone()).collect()
 }
 
+pub fn remove_lan_ipv6_address(mac: &MacAddr) {
+    let mut write_guard = LAN_IPV6_ADDRESSES_LIST.write().unwrap();
+    // if let Some(ipv6_networks) = write_guard.get_mut(mac) {
+    //     if let Some(index) = ipv6_networks.iter().position(|x| x == ipv6_network) {
+    //         ipv6_networks.remove(index);
+    //     }
+    // }
+    write_guard.remove_entry(mac);
+}
 // 清空LAN_NEIBORHOOD_IPV6中的所有IPv6网络
 pub fn clear_lan_ipv6_addresses_list() {
     let mut write_guard = LAN_IPV6_ADDRESSES_LIST.write().unwrap();
