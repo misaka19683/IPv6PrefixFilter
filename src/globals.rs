@@ -1,14 +1,15 @@
 use once_cell::sync::Lazy;
-use std::sync::{atomic::AtomicBool, Mutex, RwLock};
+use std::{collections::BTreeMap, sync::{atomic::AtomicBool, Mutex, RwLock}};
 use ipnet::Ipv6Net;
-use pnet::datalink::{interfaces,NetworkInterface};
+use pnet::datalink::{interfaces,NetworkInterface,MacAddr};
 //{interfaces, NetworkInterface};
 // 全局变量定义
 pub static QUEUE_NUM: u16 = 0;
 pub static BLACKLIST_MODE: AtomicBool = AtomicBool::new(false);
 pub static GLOBAL_CONTAINER: Lazy<Mutex<Vec<Ipv6Net>>> = Lazy::new(|| Mutex::new(Vec::new()));
 pub static INTERFACE_NAME: Lazy<Mutex<Option<NetworkInterface>>> = Lazy::new(|| Mutex::new(None));
-pub static LAN_IPV6_ADDRESSES_LIST:Lazy<RwLock<Vec<Ipv6Net>>>=Lazy::new(|| RwLock::new(Vec::new()));
+// pub static LAN_IPV6_ADDRESSES_LIST:Lazy<RwLock<Vec<Ipv6Net>>>=Lazy::new(|| RwLock::new(Vec::new()));
+pub static LAN_IPV6_ADDRESSES_LIST:Lazy<RwLock<BTreeMap<MacAddr,Vec<Ipv6Net>>>>=Lazy::new(|| RwLock::new(BTreeMap::new()));
 // GLOBAL_CONTAINER 方法
 /// 向全局容器添加一个截断后的 IPv6 网络。
 pub fn add_to_container(ip: Ipv6Net) {
@@ -57,15 +58,21 @@ pub fn clear_interface_name() {
 
 
 // 向LAN_NEIBORHOOD_IPV6写入IPv6网络
-pub fn set_lan_ipv6_address(ipv6_network: Ipv6Net) {
+pub fn set_lan_ipv6_address(mac: MacAddr, ipv6_network: Ipv6Net) {
     let mut write_guard = LAN_IPV6_ADDRESSES_LIST.write().unwrap();
-    write_guard.push(ipv6_network);
+    write_guard.entry(mac).or_insert_with(Vec::new).push(ipv6_network);
 }
 
 // 从LAN_NEIBORHOOD_IPV6读取IPv6网络列表
-pub fn get_lan_ipv6_addresses() -> Vec<Ipv6Net> {
+pub fn get_lan_ipv6_addresses(mac:&MacAddr) -> Option<Vec<Ipv6Net>> {
     let read_guard = LAN_IPV6_ADDRESSES_LIST.read().unwrap();
-    read_guard.clone()
+    //read_guard.iter().map(|(mac, ipv6_network)| (mac.clone(), ipv6_network.clone()) ).collect()
+    read_guard.get(mac).cloned()
+}
+
+pub fn get_all_lan_ipv6_addresses() -> Vec<(MacAddr,Vec<Ipv6Net>)> {
+    let read_guard = LAN_IPV6_ADDRESSES_LIST.read().unwrap();
+    read_guard.iter().map(|(mac, ipv6_networks)| (mac.clone(), ipv6_networks.clone()) ).collect()
 }
 
 // 清空LAN_NEIBORHOOD_IPV6中的所有IPv6网络
