@@ -30,7 +30,12 @@ pub fn handle_run(disable_nft_autoset:bool) {
     process_queue();
     delete_nftables().expect("Failed to clear nftables");
 }
-
+#[cfg(windows)]
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(windows)]
+use std::sync::Arc;
+#[cfg(windows)]
+use crate::master::windivert_deal::the_process;
 #[cfg(windows)]
 pub fn handle_run() {
     info!("IPv6PrefixFilter start running on Windows...");
