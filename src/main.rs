@@ -94,7 +94,7 @@ async fn main() {
             if blacklist_mode{BLACKLIST_MODE.store(true, Ordering::SeqCst);}
 
             #[cfg(target_os = "linux")]
-            handle_run(disable_nft_autoset).await;
+            handle_run(disable_nft_autoset);
             #[cfg(windows)]
             if disable_nft_autoset{
                 warn!("The disable_nft_autoset option is not supported on Windows.");
