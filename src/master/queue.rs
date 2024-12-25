@@ -11,11 +11,7 @@ use pnet::packet::{
     ipv6::Ipv6Packet,
     Packet,
 };
-use std::{
-    sync::{Arc,atomic::{AtomicBool,Ordering}},
-    thread::sleep,
-    time::Duration,
-};
+use std::sync::atomic::Ordering;
 
 use crate::error::AppError;
 use crate::globals::{get_container_data, BLACKLIST_MODE, QUEUE_NUM};
@@ -34,29 +30,66 @@ pub fn start_queue() -> std::result::Result<Queue, AppError> {
     Ok(queue)
 }
 #[cfg(target_os = "linux")]
-pub fn process_queue(queue: &mut Queue,stop_flag: Arc<AtomicBool>,)
- -> std::result::Result<(), AppError> {
-    // 设置队列为非阻塞
-    queue.set_nonblocking(true);
-    while stop_flag.load(Ordering::SeqCst) {
-        match queue.recv() {
-            Ok(mut msg) => {
-                let data = msg.get_payload();
-
-                let verdict = handle_packet(data);
-
-                msg.set_verdict(verdict);
-
-                queue.verdict(msg)?;
-            }
-            Err(_) => {
-                sleep(Duration::from_millis(50));
-                continue;
-            }
+pub fn process_queue() {
+    use tokio::{runtime::Runtime,  task};
+    let mut queue = match Queue::open() {
+        Ok(q) => q,
+        Err(err) => {
+            eprintln!("无法打开 NFQUEUE: {}", err);
+            return;
         }
+    };
+    if let Err(err) = queue.bind(QUEUE_NUM) {
+        eprintln!("无法绑定到队列 {}: {}", QUEUE_NUM, err);
+        return;
     }
-    Err(AppError::Interrupt)
+    if let Err(err) = queue.set_fail_open(QUEUE_NUM, false) {
+        eprintln!("无法设置 fail-open 行为: {}", err);
+        return;
+    }
+    let rt=Runtime::new().unwrap();
+    let handle=task::spawn_blocking(move||{
+        loop {
+            match queue.recv() {
+                Ok(mut msg) => {
+                    let data = msg.get_payload();
+                    let verdict = handle_packet(data);
+                    msg.set_verdict(verdict);
+                    queue.verdict(msg).unwrap();
+                }
+                Err(_) => {
+                    eprint!("NFQUEUE 接收数据包失败！");
+                    //continue;
+                    break;
+                }
+            }
+        }   
+    });
+    rt.block_on(async{
+        let _=tokio::signal::ctrl_c().await;
+        println!("接收到SIGINT，正在优雅地关闭程序...");
+        handle.abort();
+        handle.await.unwrap();
+        info!("Queue listener stopped!");
+    });
 }
+    // while stop_flag.load(Ordering::SeqCst) {
+    //     match queue.recv() {
+    //         Ok(mut msg) => {
+    //             let data = msg.get_payload();
+
+    //             let verdict = handle_packet(data);
+
+    //             msg.set_verdict(verdict);
+
+    //             queue.verdict(msg).unwrap();
+    //         }
+    //         Err(_) => {
+    //             sleep(Duration::from_millis(50));
+    //             continue;
+    //         }
+    //     }
+    // }
 #[cfg(target_os = "linux")]
 /// 处理数据包
 fn handle_packet(data: &[u8]) -> Verdict {

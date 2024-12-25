@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use tokio;
 use env_logger;
 use env_logger::{Builder, Target};
 use ipnet::Ipv6Net;
@@ -61,8 +62,8 @@ pub enum Commands {
     EmptyList,
     // BlacklistMode,
 }
-
-fn main() {
+#[tokio::main]
+async fn main() {
     // 解析命令行参数
     let args = Args::parse();
 
@@ -93,7 +94,7 @@ fn main() {
             if blacklist_mode{BLACKLIST_MODE.store(true, Ordering::SeqCst);}
 
             #[cfg(target_os = "linux")]
-            handle_run(disable_nft_autoset);
+            handle_run(disable_nft_autoset).await;
             #[cfg(windows)]
             if disable_nft_autoset{
                 warn!("The disable_nft_autoset option is not supported on Windows.");

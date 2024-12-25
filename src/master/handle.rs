@@ -1,13 +1,9 @@
-use log::{info,warn,debug};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
-
+use log::{info,warn};
 use crate::master::*;
 
 #[cfg(windows)]
 use windivert_deal::*;
 
-#[cfg(target_os = "linux")]
-use crate::error::handle_error;
 #[cfg(target_os = "linux")]
 use crate::globals::{clear_container,clear_interface_name};
 
@@ -22,10 +18,6 @@ pub fn handle_init(){
 pub fn handle_run(disable_nft_autoset:bool) {
     info!("IPv6PrefixFilter start running on Linux...");
     
-    // 设置退出信号捕获
-    // let running = Arc::new(AtomicBool::new(true));
-    let stop_flag = Arc::new(AtomicBool::new(true));
-
     if disable_nft_autoset {
         warn!("nftables rule set is not enabled, please set nftables rules manually");
     }else {
@@ -35,23 +27,8 @@ pub fn handle_run(disable_nft_autoset:bool) {
     }
     // 启动队列监听器
     info!("Starting NFQUEUE listen...");
-    let mut queue = start_queue().expect("Failed to start NFQUEUE");
-
-    // 捕获 Ctrl+C 信号并设置 stop_flag 为 true
-    {
-        let stop_flag = Arc::clone(&stop_flag);
-        ctrlc::set_handler(move || {
-            warn!("Caught Ctrl+C, throwing interrupted error...");
-            stop_flag.store(false, Ordering::SeqCst); // 设置 stop_flag，允许处理程序退出
-            debug!("Setting stop_flag to false");
-        })
-        .expect("Error setting Ctrl+C handler");
-    }
-
-    match process_queue(&mut queue, stop_flag) {
-        Ok(_) => {},
-        Err(e) => handle_error(e),
-    }
+    process_queue();
+    delete_nftables().expect("Failed to clear nftables");
 }
 
 #[cfg(windows)]
