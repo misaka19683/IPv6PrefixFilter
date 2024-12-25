@@ -1,8 +1,7 @@
-use log::{info,warn};
+use log::{info,warn,debug};
+#[cfg(target_os = "linux")]
 use crate::master::*;
 
-#[cfg(windows)]
-use windivert_deal::*;
 
 #[cfg(target_os = "linux")]
 use crate::globals::{clear_container,clear_interface_name};
