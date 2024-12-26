@@ -21,7 +21,29 @@ use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use std::{sync::{Arc, atomic::{AtomicBool,Ordering}},thread::sleep,time::Duration};
 use crate::utils::ipv6_addr_u8_to_string;
 use log::{info,debug};
-
+macro_rules! send_packet {
+    ($w:expr, $packet_buffer:expr, $packet_len:expr, $address:expr) => {
+        unsafe {
+            let sendsuccession=WinDivertSend(
+                $w,
+                $packet_buffer.as_mut_ptr() as *mut _,
+                $packet_buffer.len() as u32,
+                &mut $packet_len,
+                &mut $address,
+            );
+            if sendsuccession==false {
+                log::error!("Failed to send packet.");
+                WinDivertSend(
+                    $w,
+                    $packet_buffer.as_mut_ptr() as *mut _,
+                    $packet_buffer.len() as u32,
+                    &mut $packet_len,
+                    &mut $address,
+                );
+            }
+        }
+    };
+}
 #[cfg(windows)]
 pub fn the_process(stop_flag:Arc<AtomicBool>)  {
     
@@ -58,15 +80,7 @@ pub fn the_process(stop_flag:Arc<AtomicBool>)  {
         let ipv6_packet=match Ipv6Packet::new(packet_data) {
             Some(thepacket)=> thepacket,
             None=> {
-                unsafe {
-                    let _=WinDivertSend(
-                        w,
-                        packet_buffer.as_mut_ptr() as *mut _,
-                        packet_buffer.len() as u32,
-                        &mut packet_len,
-                        &mut address,
-                    );
-                }
+                send_packet!(w, packet_buffer, packet_len, address);
                 continue;
             }
         };
@@ -74,60 +88,28 @@ pub fn the_process(stop_flag:Arc<AtomicBool>)  {
         let icmpv6_packet=match Icmpv6Packet::new(ipv6_packet.payload()) {
             Some(thepacket)=> thepacket,
             None=> {
-                unsafe {
-                    let _=WinDivertSend(
-                        w,
-                        packet_buffer.as_mut_ptr() as *mut _,
-                        packet_buffer.len() as u32,
-                        &mut packet_len,
-                        &mut address,
-                    );
-                }
+                send_packet!(w, packet_buffer, packet_len, address);
                 continue;
             },
         };
         debug!("It's an ICMPv6 packet.");
         if icmpv6_packet.get_icmpv6_type() != RouterAdvert {
             //debug!("It's not a RouterAdvert packet!");
-            unsafe {
-                let _=WinDivertSend(
-                    w,
-                    packet_buffer.as_mut_ptr() as *mut _,
-                    packet_buffer.len() as u32,
-                    &mut packet_len,
-                    &mut address,
-                );
-            }
+            send_packet!(w, packet_buffer, packet_len, address);
             continue;
         }
         debug!("It's a RouterAdvert packet.");
         let ra_packet = match RouterAdvertPacket::new(icmpv6_packet.packet()) {
             Some(packet) => packet,
             None => {
-                unsafe {
-                    let _=WinDivertSend(
-                        w,
-                        packet_buffer.as_mut_ptr() as *mut _,
-                        packet_buffer.len() as u32,
-                        &mut packet_len,
-                        &mut address,
-                    );
-                }
+                send_packet!(w, packet_buffer, packet_len, address);
                 continue;
             },
         };
         debug!("It's a RouterAdvert packet with options.");
         for op in ra_packet.get_options() {
             if op.option_type != PrefixInformation {
-                unsafe {
-                    let _=WinDivertSend(
-                        w,
-                        packet_buffer.as_mut_ptr() as *mut _,
-                        packet_buffer.len() as u32,
-                        &mut packet_len,
-                        &mut address,
-                    );
-                }
+                send_packet!(w, packet_buffer, packet_len, address);
                 continue;
             }
             let option_raw = op.to_bytes();
@@ -137,15 +119,7 @@ pub fn the_process(stop_flag:Arc<AtomicBool>)  {
                     packet
                 }
                 None =>{
-                    unsafe {
-                        let _=WinDivertSend(
-                            w,
-                            packet_buffer.as_mut_ptr() as *mut _,
-                            packet_buffer.len() as u32,
-                            &mut packet_len,
-                            &mut address,
-                        );
-                    }
+                    send_packet!(w, packet_buffer, packet_len, address);
                     continue;
                 }
             };
@@ -156,17 +130,8 @@ pub fn the_process(stop_flag:Arc<AtomicBool>)  {
 
             let ipv6_prefix:Vec<Ipv6Net> = get_container_data();
             let is_prefix_in_list = ipv6_prefix.iter().any(|&prefix| prefix.addr().octets() == pfi.payload());
-            let verdict = decide_verdict(blacklist_mode,is_prefix_in_list);
-            if verdict {
-                unsafe {
-                    let _=WinDivertSend(
-                        w,
-                        packet_buffer.as_mut_ptr() as *mut _,
-                        packet_buffer.len() as u32,
-                        &mut packet_len,
-                        &mut address,
-                    );
-                }
+            if decide_verdict(blacklist_mode,is_prefix_in_list) {
+                send_packet!(w, packet_buffer, packet_len, address);
                 info!("Packet is allowed.");
                 continue;
             }else {
@@ -187,3 +152,4 @@ fn decide_verdict(blacklist_mode: bool, is_prefix_in_list: bool) -> bool {
         _ => false,
     }
 }
+
