@@ -17,7 +17,7 @@ use pnet::packet::{ Packet,ipv6::Ipv6Packet,
 use crate::globals::{get_container_data, BLACKLIST_MODE};
 use ipnet::Ipv6Net;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
-use std::{sync::{Arc, atomic::{AtomicBool,Ordering}},thread::sleep,time::Duration};
+use std::{sync::{Arc, atomic::{AtomicBool,Ordering}},time::Duration};
 use crate::utils::ipv6_addr_u8_to_string;
 use log::{info,debug};
 macro_rules! send_packet {
@@ -46,8 +46,7 @@ macro_rules! send_packet {
     };
 }
 #[cfg(windows)]
-pub fn the_process(stop_flag:Arc<AtomicBool>)  {
-
+pub async fn the_process(stop_flag:Arc<AtomicBool>)  {
     use windivert_sys::WinDivertHelperCompileFilter;
     let w={
         let filter_cstr=CString::new("inbound and !loopback and icmpv6.Type==134").expect("CString::new failed");
@@ -94,7 +93,8 @@ pub fn the_process(stop_flag:Arc<AtomicBool>)  {
                 &mut address,
             )};
             if result==false {
-                sleep(Duration::from_millis(100));
+                //sleep(Duration::from_millis(100));
+                tokio::time::sleep(Duration::from_millis(100)).await;
                 debug!("Failed to receive packet.");
                 continue;
             }

@@ -14,6 +14,8 @@ pub use handle::*;
 #[cfg(windows)]
 mod windivert_deal;
 #[cfg(windows)]
+mod wdvt;
+#[cfg(windows)]
 mod handle;
 #[cfg(windows)]
 pub use handle::*;

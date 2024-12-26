@@ -15,6 +15,7 @@ pnet_macros = "0.35.0"
 pnet_macros_support = "0.35.0"
 thiserror = "2.0.3"
 tokio = {version = "1.42.0",features = ["full"]}
+windivert = "0.6.0"
 
 
 

@@ -98,7 +98,7 @@ async fn main() {
             #[cfg(windows)]
             if disable_nft_autoset{
                 warn!("The disable_nft_autoset option is not supported on Windows.");
-            }else{handle_run();}
+            }else{handle_run().await;}
         }
         Some(Commands::Clear) => {
             #[cfg(target_os = "linux")]

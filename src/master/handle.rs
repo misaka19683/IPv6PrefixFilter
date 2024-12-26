@@ -36,7 +36,7 @@ use std::sync::Arc;
 #[cfg(windows)]
 use crate::master::windivert_deal::the_process;
 #[cfg(windows)]
-pub fn handle_run() {
+pub async fn handle_run2() {
     info!("IPv6PrefixFilter start running on Windows...");
 
     let stop_flag = Arc::new(AtomicBool::new(true));
@@ -50,7 +50,14 @@ pub fn handle_run() {
     }
     info!("start_deal");
     debug!("debug_start_deal");
-    the_process(stop_flag);
+    the_process(stop_flag).await;
+}
+#[cfg(windows)]
+pub async fn handle_run(){
+    use crate::master::wdvt::wdvt_process;
+    info!("IPv6PrefixFilter start running on Windows...");
+    wdvt_process();
+    info!("IPv6PrefixFilter end running on Windows...");
 }
 
 /// 清理操作
