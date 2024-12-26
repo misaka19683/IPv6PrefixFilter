@@ -11,11 +11,10 @@ use windivert_sys::{
 };
 #[cfg(windows)]
 use std::ffi::CString;
-//use windivert_sys::address::WINDIVERT_ADDRESS;
 use pnet::packet::{ Packet,ipv6::Ipv6Packet,
     icmpv6::{Icmpv6Types::RouterAdvert,Icmpv6Packet,
     ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}}};
-    use crate::globals::{get_container_data, BLACKLIST_MODE};
+use crate::globals::{get_container_data, BLACKLIST_MODE};
 use ipnet::Ipv6Net;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use std::{sync::{Arc, atomic::{AtomicBool,Ordering}},thread::sleep,time::Duration};
@@ -40,41 +39,66 @@ macro_rules! send_packet {
                     &mut $packet_len,
                     &mut $address,
                 );
+            }else{
+                log::info!("Packet sent.");
             }
         }
     };
 }
 #[cfg(windows)]
 pub fn the_process(stop_flag:Arc<AtomicBool>)  {
-    
 
-    let filter_cstr=CString::new("true").expect("CString::new failed");
-    //let filter_cstr=CString::new("icmp6.Type==134").expect("CString::new failed");
-    let filter=filter_cstr.as_ptr();
-    let layer=WinDivertLayer::Network;
-    let flags=WinDivertFlags::new();
-    let w=unsafe {WinDivertOpen(filter, layer, 0i16, flags)};
+    use windivert_sys::WinDivertHelperCompileFilter;
+    let w={
+        let filter_cstr=CString::new("inbound and !loopback and icmpv6.Type==134").expect("CString::new failed");
+        let filter=filter_cstr.as_ptr();
+        let layer=WinDivertLayer::Network;
+
+        //程序会检查 WinDivert 驱动程序是否已经安装在系统上。
+        //如果 WinDivert 驱动程序没有安装，WinDivertOpen 函数将会失败，并返回一个特定的错误代码 ERROR_SERVICE_DOES_NOT_EXIST（值为 1060）。
+        //这个错误代码是一个标准的 Windows 错误代码，表示请求的服务不存在。
+        let flags=WinDivertFlags::new().set_no_installs();
+        //let w=unsafe {WinDivertOpen(filter, layer, 0i16, flags)};
+        let filter_object:*mut i8=0 as *mut i8;
+        let objLen:u32=65535;
+        let errStr:*mut *const i8=0 as *mut *const i8;
+        let errPos:*mut u32=0 as *mut u32;
+        let w=
+            if unsafe{WinDivertHelperCompileFilter(filter,layer,filter_object,objLen,errStr,errPos)}==true {
+                log::info!("Filter compiled successfully.");
+                unsafe {WinDivertOpen(filter, layer, 0i16, flags)}
+            }else{
+                //println!("{}",errStr.to_str().unwrap());
+                log::error!("Failed to compile filter.");
+                return;
+            };
+        
+        debug!("WinDivert handle opened.");
+        w
+    };
+//=========================================================================================================================
+
     // 初始化 `WINDIVERT_ADDRESS`
     let mut address = <WINDIVERT_ADDRESS as std::default::Default>::default(); 
     let mut packet_buffer=vec![0u8; 65535];
     let mut packet_len=0u32;
 
     while stop_flag.load(Ordering::SeqCst) {
-        unsafe {
+        
             //println!("Waiting for packets...");
-            let result=WinDivertRecv(
+            let result=unsafe { WinDivertRecv(
                 w,
                 packet_buffer.as_mut_ptr() as *mut _,
                 packet_buffer.len() as u32,
                 &mut packet_len,
                 &mut address,
-            );
+            )};
             if result==false {
                 sleep(Duration::from_millis(100));
                 debug!("Failed to receive packet.");
                 continue;
             }
-        }
+        
         // debug!("Received a packet.");
         let packet_data=&packet_buffer[..packet_len as usize];
         let ipv6_packet=match Ipv6Packet::new(packet_data) {
