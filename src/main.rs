@@ -7,7 +7,7 @@ use log::{debug, info, warn};
 use std::sync::atomic::Ordering;
 // 引用自己的代码
 #[cfg(target_os = "linux")]
-use IPv6PrefixFilter::daemon;
+// use IPv6PrefixFilter::daemon;
 
 use IPv6PrefixFilter::{ master::*,globals::*};
 
@@ -49,18 +49,9 @@ pub enum Commands {
     /// Clear the nft rules set by the program, especially when the program exits improperly without executing the cleanup process.
     Clear,
     /// Run as a daemon process.
-    Daemon,
+    // Daemon, //TODO: Waiting for implementation.
     /// Print version info.
-    Version,
-    //我希望可以向list中添加一个IPv6前缀
-    ///Add Ipv6 prefix to the list
-    AddList{
-        #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Net))]
-        ipv6_prefixes: Vec<Ipv6Net>,
-    },
-    ///Remove all Ipv6 prefix from the list
-    EmptyList,
-    // BlacklistMode,
+    Version
 }
 #[tokio::main]
 async fn main() {
@@ -106,21 +97,14 @@ async fn main() {
             #[cfg(target_os = "linux")]
             handle_clear(); // 传递参数给`handle_clear`
         }
-        Some(Commands::Daemon) => {
-            #[cfg(target_os = "linux")]
-            daemon::daemon_run().expect("Failed to start daemon."); // 启动守护进程
-            println!("Running as daemon.");
-        }
+        // TODO: Waiting for implementation
+        // Some(Commands::Daemon) => {
+        //     #[cfg(target_os = "linux")]
+        //     daemon::daemon_run().expect("Failed to start daemon."); // 启动守护进程
+        //     println!("Running as daemon.");
+        // }
         Some(Commands::Version) => {
             println!("Version 1.0.0");
-        }
-        Some(Commands::AddList{ipv6_prefixes})=>{
-            for prefix in ipv6_prefixes{
-                add_to_container(prefix);
-            }
-        }
-        Some(Commands::EmptyList)=>{
-            clear_container();
         }
         _ => {
             println!("No command provided. Use --help for help.");

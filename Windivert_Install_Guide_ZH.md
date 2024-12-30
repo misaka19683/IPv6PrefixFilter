@@ -1,12 +1,12 @@
 Windivert安装指南
 
-1. 下载[WinDivert: Windows Packet Divert](https://reqrypt.org/windivert.html)的[WinDivert-2.2.2-A.zip](https://reqrypt.org/download/WinDivert-2.2.2-A.zip)文件
+1. 下载 [WinDivert: Windows Packet Divert](https://reqrypt.org/windivert.html) 的 [WinDivert-2.2.2-A.zip](https://reqrypt.org/download/WinDivert-2.2.2-A.zip)文件
 
-2. 找到x64\WinDivert64.sys文件
+2. 找到 `x64\WinDivert64.sys` 文件
 
-3. 将此文件复制到C:\Windows\System32\drivers下
+3. 将此文件复制到 `C:\Windows\System32\drivers` 下
 
-4. 使用管理员权限的cmd运行
+4. 使用管理员权限的 `cmd` 运行
 
    ```cmd
    C:\Windows\System32>sc create WinDivert binPath= "C:\Windows\System32\drivers\WinDivert64.sys" type= kernel start= system
@@ -26,7 +26,5 @@ Windivert安装指南
            CHECKPOINT         : 0x0
            WAIT_HINT          : 0x0
    ```
-
-   
 
 5. 成功!
