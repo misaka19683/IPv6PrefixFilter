@@ -3,11 +3,47 @@ use windivert::{
 use pnet::packet::{icmpv6::{ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}, Icmpv6Packet, Icmpv6Types::RouterAdvert}, ipv6::Ipv6Packet, Packet};
 use ipnet::Ipv6Net;
 use log::{info,debug,error,warn};
-use std::{sync::{atomic::Ordering,Arc}, vec};
-use tokio::sync::{mpsc,RwLock};
+use std::{sync::{atomic::Ordering,Arc}, vec,collections::VecDeque};
+use tokio::sync::{mpsc,RwLock,Mutex};
 use crate:: utils::ipv6_addr_u8_to_string;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use crate::globals::{get_container_data, BLACKLIST_MODE,get_interface_name};
+
+const BUFFER_SIZE: usize = 1500;  // 每个数据包的缓冲区大小
+const POOL_SIZE: usize = 10;  // 内存池中缓冲区的数量
+
+#[derive(Clone)]
+struct MemoryPool {
+    pool: Arc<Mutex<VecDeque<Vec<u8>>>>,
+}
+impl MemoryPool {
+    fn new() -> Self {
+        let mut pool = VecDeque::with_capacity(POOL_SIZE);
+        // 初始化内存池，填充一些缓冲区
+        for _ in 0..POOL_SIZE {
+            pool.push_back(vec![0u8; BUFFER_SIZE]);
+        }
+        MemoryPool {
+            pool: Arc::new(Mutex::new(pool)),
+        }
+    }
+    // 从池中获取一个缓冲区
+    async fn acquire(&self) -> Vec<u8> {
+        let mut pool = self.pool.lock().await;
+        if let Some(buffer) = pool.pop_front() {
+            buffer // 如果有缓冲区，直接返回
+        } else {
+            vec![0u8; BUFFER_SIZE] // 如果池中没有缓冲区，则创建一个新的缓冲区
+        }
+    }
+    // 将缓冲区归还到池中
+    async fn release(&self, buffer: Vec<u8>) {
+        let mut pool = self.pool.lock().await;
+        if pool.len() < POOL_SIZE {
+            pool.push_back(buffer); // 如果池还没有满，将缓冲区归还池中
+        }
+    }
+}
 pub async fn wdvt_process(){
     let wdvt={
         let interface_name=get_interface_name();
@@ -102,9 +138,12 @@ pub async fn wdvt_process(){
 async fn recv_packet(
     wdvt_rwlock: Arc<RwLock<WinDivert<NetworkLayer>>>,
     tx: mpsc::Sender<WinDivertPacket<'static, NetworkLayer>>,
-) {
+) {    
+    let memory_pool = MemoryPool::new();
     loop {
-        let mut packet_buffer = vec![0u8; 1500]; // 独立缓冲区
+        //let mut packet_buffer = vec![0u8; 1500]; // 独立缓冲区
+        // 从内存池获取缓冲区
+        let mut packet_buffer = memory_pool.acquire().await;
         let wdvt=wdvt_rwlock.read().await;
         let packet_result = wdvt.recv(Some(&mut packet_buffer)); // 从 wdvt 接收数据
 
@@ -124,6 +163,8 @@ async fn recv_packet(
                 break;
             }
         }
+        // 将缓冲区归还到内存池中
+        memory_pool.release(packet_buffer).await;
     }
 }
 
