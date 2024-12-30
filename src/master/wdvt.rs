@@ -1,16 +1,13 @@
 use windivert::{
     layer::NetworkLayer, packet::WinDivertPacket, prelude::WinDivertFlags, WinDivert};
-use pnet::packet::{ Packet,ipv6::Ipv6Packet,
-    icmpv6::{Icmpv6Types::RouterAdvert,Icmpv6Packet,
-    ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}}};
+use pnet::packet::{icmpv6::{ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}, Icmpv6Packet, Icmpv6Types::RouterAdvert}, ipv6::Ipv6Packet, Packet};
 use ipnet::Ipv6Net;
 use log::{info,debug,error};
-use std::sync::{atomic::Ordering,Arc};
+use std::{sync::{atomic::Ordering,Arc}, vec};
 use tokio::sync::mpsc;
 use crate:: utils::ipv6_addr_u8_to_string;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
 use crate::globals::{get_container_data, BLACKLIST_MODE};
-
 pub async fn wdvt_process(){
     let filter="inbound and !loopback and icmpv6.Type==134";
     let wdvt=Arc::new(WinDivert::network(filter, 1,WinDivertFlags::new()).unwrap());
@@ -79,32 +76,47 @@ pub async fn wdvt_process(){
     };
     let (tx,rx)=mpsc::channel(100);
     let wdvt_clone=Arc::clone(&wdvt);
+    //let shared_buffer=Arc::new(Mutex::new(Vec::with_capacity(1500)));
+
     tokio::spawn(async move {
+        //let mut shared_buffer=[0u8;1500];
         recv_packet(wdvt_clone, tx).await;
     });
     process_packet(wdvt, condition,rx).await;
 }
 //这是一个异步函数，用于接收数据包，并将其发送到指定的 channel 中。
-async fn recv_packet(wdvt:Arc<WinDivert<NetworkLayer>>,tx: mpsc::Sender<WinDivertPacket<'static,NetworkLayer>>) {
+async fn recv_packet(
+    wdvt: Arc<WinDivert<NetworkLayer>>,
+    tx: mpsc::Sender<WinDivertPacket<'static, NetworkLayer>>,
+) {
     loop {
-        match wdvt.recv(None) {
+        let mut packet_buffer = vec![0u8; 1500]; // 独立缓冲区
+        let packet_result = wdvt.recv(Some(&mut packet_buffer)); // 从 wdvt 接收数据
+
+        match packet_result {
             Ok(packet) => {
-                if tx.send(packet).await.is_err() {
+                // 使用 Clone 方法创建一个独立的 WinDivertPacket
+                let owned_packet = packet.into_owned();
+
+                // 发送克隆后的数据包
+                if tx.send(owned_packet).await.is_err() {
                     error!("Send packet failed!");
                     break;
                 }
-            },
-            Err(e)=>{
+            }
+            Err(e) => {
                 error!("Recv error: {}", e);
                 break;
-            },
+            }
         }
     }
 }
+
 //这是一个异步函数，用于处理数据包，并根据条件决定是否发送到另一个网络接口。
 // condition 是一个函数，用于判断是否应该处理该数据包。
 // rx 是一个 channel，用于接收数据包。
-async fn process_packet<F>(wdvt: Arc<WinDivert<NetworkLayer>>, condition: F,mut rx: mpsc::Receiver<WinDivertPacket<'static,NetworkLayer>>)
+async fn process_packet<F>(wdvt: Arc<WinDivert<NetworkLayer>>,
+     condition: F,mut rx: mpsc::Receiver<WinDivertPacket<'static,NetworkLayer>>)
 where
     F: Fn(&[u8]) -> bool + Send + 'static,
 {   
@@ -139,13 +151,11 @@ where
 }
 // 发送数据包两次，防止丢包。
 fn send_twice(wdt:&WinDivert<NetworkLayer>,packet:&WinDivertPacket<NetworkLayer>){
-    match wdt.send(&packet) {
-        Ok(_) => debug!("Send once successfully!"),
-        Err(_) => {
-            match wdt.send(packet) {
-                Ok(_) => debug!("Send twice successfully!"),
-                Err(e) => error!("Send twice failed!,{}",e),
-            }
+    for _ in 0..2 {
+        if wdt.send(packet).is_ok() {
+            debug!("Packet sent successfully!");
+            return;
         }
     }
+    error!("Send twice failed!");
 }
