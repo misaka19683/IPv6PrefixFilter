@@ -6,7 +6,7 @@ use ipnet::Ipv6Net;
 use log::{debug, info, warn};
 use std::sync::atomic::Ordering;
 // 引用自己的代码
-#[cfg(target_os = "linux")]
+//#[cfg(target_os = "linux")]
 // use IPv6PrefixFilter::daemon;
 
 use IPv6PrefixFilter::{ master::*,globals::*};

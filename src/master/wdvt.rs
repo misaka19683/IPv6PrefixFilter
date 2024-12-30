@@ -90,10 +90,13 @@ pub async fn wdvt_process(){
     };
     let (tx,rx)=mpsc::channel(100);
     let wdvt_clone=Arc::clone(&wdvt);
-    tokio::spawn(async move {
+    let _handle=tokio::spawn(async move {
         recv_packet(wdvt_clone, tx).await;
     });
     process_packet(wdvt, condition,rx).await;
+    
+    //handle.abort();
+    info!("wdvt process stopped!");
 }
 //这是一个异步函数，用于接收数据包，并将其发送到指定的 channel 中。
 async fn recv_packet(

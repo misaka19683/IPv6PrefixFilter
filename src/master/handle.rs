@@ -1,3 +1,4 @@
+#[cfg(target_os = "linux")]
 use log::{info,warn,debug};
 #[cfg(target_os = "linux")]
 use crate::master::*;
@@ -27,33 +28,13 @@ pub fn handle_run(disable_nft_autoset:bool) {
     // 启动队列监听器
     info!("Starting NFQUEUE listen...");
     process_queue();
-    delete_nftables().expect("Failed to clear nftables");
+    delete_nftables()
+    .expect("Failed to clear nftables, please use 'sudo nft delete table ip6 rafilter' to clear manually");
 }
-#[cfg(windows)]
-use std::sync::atomic::{AtomicBool, Ordering};
-#[cfg(windows)]
-use std::sync::Arc;
-#[cfg(windows)]
-use crate::master::windivert_deal::the_process;
-#[cfg(windows)]
-pub async fn handle_run2() {
-    info!("IPv6PrefixFilter start running on Windows...");
 
-    let stop_flag = Arc::new(AtomicBool::new(true));
-    {
-        let stop_flag = Arc::clone(&stop_flag);
-        ctrlc::set_handler(move || {
-            warn!("Caught Ctrl+C, throwing interrupted error...");
-            stop_flag.store(false, Ordering::SeqCst); // 设置 stop_flag，允许处理程序退出
-        })
-        .expect("Error setting Ctrl+C handler");
-    }
-    info!("start_deal");
-    debug!("debug_start_deal");
-    the_process(stop_flag).await;
-}
 #[cfg(windows)]
 pub async fn handle_run(){
+    use log::info;
     use crate::master::wdvt::wdvt_process;
     info!("IPv6PrefixFilter start running on Windows...");
     wdvt_process().await;

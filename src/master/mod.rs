@@ -12,8 +12,6 @@ use queue::{start_queue,process_queue};
 pub use handle::*;
 
 #[cfg(windows)]
-mod windivert_deal;
-#[cfg(windows)]
 mod wdvt;
 #[cfg(windows)]
 mod handle;
