@@ -1,16 +1,30 @@
 use windivert::{
-    layer::NetworkLayer, packet::WinDivertPacket, prelude::WinDivertFlags, WinDivert};
+    layer::NetworkLayer, packet::WinDivertPacket, prelude::WinDivertFlags, CloseAction, WinDivert};
 use pnet::packet::{icmpv6::{ndp::{NdpOptionTypes::PrefixInformation, RouterAdvertPacket}, Icmpv6Packet, Icmpv6Types::RouterAdvert}, ipv6::Ipv6Packet, Packet};
 use ipnet::Ipv6Net;
-use log::{info,debug,error};
+use log::{info,debug,error,warn};
 use std::{sync::{atomic::Ordering,Arc}, vec};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc,RwLock};
 use crate:: utils::ipv6_addr_u8_to_string;
 use crate::prefix_info::{PrefixInformationPacket, ToBytes};
-use crate::globals::{get_container_data, BLACKLIST_MODE};
+use crate::globals::{get_container_data, BLACKLIST_MODE,get_interface_name};
 pub async fn wdvt_process(){
-    let filter="inbound and !loopback and icmpv6.Type==134";
-    let wdvt=Arc::new(WinDivert::network(filter, 1,WinDivertFlags::new()).unwrap());
+    let wdvt={
+        let interface_name=get_interface_name();
+        let filter=match interface_name{
+            Some(name) => 
+                {   
+                    //format!("inbound and !loopback and ipv6.InterfaceName==\"{}\" and icmpv6.Type==134",name)
+                    format!("inbound and !loopback and ifidx=={} and icmpv6.Type==134",name.index)
+            },
+            None => 
+                format!("inbound and !loopback and icmpv6.Type==134"),
+        };
+        //let filter="inbound and !loopback and icmpv6.Type==134";
+        let flags=WinDivertFlags::new();
+        let wdvt=WinDivert::network(filter, 1,flags).unwrap();
+        Arc::new(RwLock::new(wdvt))
+    };
     let condition=|data: &[u8]| -> bool {
         let ipv6_prefix: Vec<Ipv6Net> = get_container_data();
         let ipv6_packet = match Ipv6Packet::new(data) {
@@ -76,21 +90,19 @@ pub async fn wdvt_process(){
     };
     let (tx,rx)=mpsc::channel(100);
     let wdvt_clone=Arc::clone(&wdvt);
-    //let shared_buffer=Arc::new(Mutex::new(Vec::with_capacity(1500)));
-
     tokio::spawn(async move {
-        //let mut shared_buffer=[0u8;1500];
         recv_packet(wdvt_clone, tx).await;
     });
     process_packet(wdvt, condition,rx).await;
 }
 //这是一个异步函数，用于接收数据包，并将其发送到指定的 channel 中。
 async fn recv_packet(
-    wdvt: Arc<WinDivert<NetworkLayer>>,
+    wdvt_rwlock: Arc<RwLock<WinDivert<NetworkLayer>>>,
     tx: mpsc::Sender<WinDivertPacket<'static, NetworkLayer>>,
 ) {
     loop {
         let mut packet_buffer = vec![0u8; 1500]; // 独立缓冲区
+        let wdvt=wdvt_rwlock.read().await;
         let packet_result = wdvt.recv(Some(&mut packet_buffer)); // 从 wdvt 接收数据
 
         match packet_result {
@@ -100,12 +112,12 @@ async fn recv_packet(
 
                 // 发送克隆后的数据包
                 if tx.send(owned_packet).await.is_err() {
-                    error!("Send packet failed!");
+                    error!("Send packet to process failed!");
                     break;
                 }
             }
             Err(e) => {
-                error!("Recv error: {}", e);
+                warn!("Recv error: {}", e);
                 break;
             }
         }
@@ -115,7 +127,7 @@ async fn recv_packet(
 //这是一个异步函数，用于处理数据包，并根据条件决定是否发送到另一个网络接口。
 // condition 是一个函数，用于判断是否应该处理该数据包。
 // rx 是一个 channel，用于接收数据包。
-async fn process_packet<F>(wdvt: Arc<WinDivert<NetworkLayer>>,
+async fn process_packet<F>(wdvt_rwlock: Arc<RwLock<WinDivert<NetworkLayer>>>,
      condition: F,mut rx: mpsc::Receiver<WinDivertPacket<'static,NetworkLayer>>)
 where
     F: Fn(&[u8]) -> bool + Send + 'static,
@@ -132,6 +144,7 @@ where
                     Some(packet) => {
                         let data=packet.data.as_ref();
                         if condition(data) {
+                            let wdvt = wdvt_rwlock.read().await;
                             send_twice(&*wdvt, &packet);
                         }else {
                             debug!("Drop packet!");
@@ -145,6 +158,15 @@ where
             },
         }
         if !running {
+            let mut wdvt = wdvt_rwlock.write().await;
+            match wdvt.close(CloseAction::Nothing){
+                Ok(_) => {
+                    info!("Close wdvt successfully!");
+                },
+                Err(e) => {
+                    error!("Close wdvt failed: {}", e);
+                }
+            }
             break;
         }
     }
@@ -157,5 +179,5 @@ fn send_twice(wdt:&WinDivert<NetworkLayer>,packet:&WinDivertPacket<NetworkLayer>
             return;
         }
     }
-    error!("Send twice failed!");
+    warn!("Send twice failed!");
 }
