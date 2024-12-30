@@ -56,7 +56,7 @@ pub async fn handle_run2() {
 pub async fn handle_run(){
     use crate::master::wdvt::wdvt_process;
     info!("IPv6PrefixFilter start running on Windows...");
-    wdvt_process();
+    wdvt_process().await;
     info!("IPv6PrefixFilter end running on Windows...");
 }
 
