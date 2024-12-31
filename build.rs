@@ -1,5 +1,5 @@
-#[cfg(target_os = "windows")]
-use std::{fs::copy,path::Path};
+// #[cfg(target_os = "windows")]
+// use std::{fs::copy,path::Path};
 #[cfg(target_os = "windows")]
 fn config() {
     // println!("cargo:rustc-link-arg=/MT"); // 强制使用静态运行时库
