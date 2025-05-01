@@ -1,10 +1,11 @@
 use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
+use std::thread::sleep;
 use ipnet::Ipv6Net;
 use log::info;
 use nftables::batch::Batch;
 use nftables::helper::apply_ruleset;
-use nftables::schema::{NfListObject, NfObject};
+use nftables::schema::{Chain, NfListObject, NfObject, Rule, Table};
 use crate::error::FilterError;
 use pnet::datalink::NetworkInterface;
 use crate::platform::traits::{FilterConfig, FilterMode, PacketProcessor};
@@ -12,7 +13,7 @@ use crate::platform::traits::{FilterConfig, FilterMode, PacketProcessor};
 pub struct LinuxFilter<'a> {
     pub(crate) queue_num: u32,
     pub(crate) interface_name: Option<NetworkInterface>,
-    pub(crate) ruleset: Option<Vec<NfObject<'a>>>,
+    pub(crate) ruleset: Vec<NfObject<'a>>,
 }
 impl Debug for LinuxFilter<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -24,67 +25,16 @@ impl FilterConfig for LinuxFilter<'_> {
     fn init(&mut self) -> Result<(), FilterError> {
         use nftables::{
             batch::Batch,
-            expr::{Expression, NamedExpression, Meta, MetaKey, Payload, PayloadField},
             helper::apply_ruleset,
-            schema::{Chain, NfListObject, NfObject, Rule, Table},
-            stmt::{Match, Operator, Queue, Statement},
-            types::{NfChainPolicy, NfChainType, NfFamily, NfHook},
         };
-        fn create_nftables_objects<'a>(queue_num: u32, interface_name: Option<NetworkInterface>) -> Vec<NfObject<'a>> {
-            let table=Table{family:NfFamily::IP6,name: Cow::from("rafilter"),handle:None};
-            let chain=Chain{
-                family:NfFamily::IP6,
-                table:table.name.clone(),
-                name: Cow::from("input"),
-                _type:Some(NfChainType::Filter),
-                hook:Some(NfHook::Input),
-                prio:Some(0),
-                policy:Some(NfChainPolicy::Accept),
-                ..Default::default()
-            };
-            let mut rule_expr=vec![
-                Statement::Match(Match {
-                    left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(
-                        PayloadField {
-                            protocol: Cow::from("icmpv6"),
-                            field: Cow::from("type"),
-                        },
-                    ))),
-                    right: Expression::Number(134), // ICMPv6 Router Advertisement
-                    op: Operator::EQ,
-                }),
-                Statement::Queue(Queue {
-                    num: Expression::Number(queue_num),
-                    flags: None,
-                }),
-            ];
-            if let Some (interface_name)=interface_name {
-                rule_expr.insert(0,Statement::Match(Match {
-                    left:Expression::Named(NamedExpression::Meta(Meta{key:MetaKey::Iifname})),
-                    right:Expression::String(Cow::from(interface_name.name)),
-                    op: Operator::EQ,
-                }));
-            }
-            let rule=Rule {family:NfFamily::IP6,table:table.name.clone(),chain:chain.name.clone(), expr:rule_expr.into(),
-                comment:Some(Cow::from("Queue ICMPv6 Router Advertisement packets")),
-                ..Default::default()
-            };
-            vec![
-                NfObject::ListObject(*Box::new(NfListObject::Table(table))),
-                NfObject::ListObject(*Box::new(NfListObject::Chain(chain))),
-                NfObject::ListObject(*Box::new(NfListObject::Rule(rule))),
-            ]
-        }
-        let ruleset=create_nftables_objects(self.queue_num,self.interface_name.clone());
         let mut batch=Batch::new();
-        batch.add_all(ruleset.clone());
-        self.ruleset=Some(ruleset);
+        batch.add_all(self.ruleset.clone());
         apply_ruleset(&batch.to_nftables()).unwrap();
         Ok(())
     }
     fn cleanup(&self) -> Result<(), FilterError> {
         let mut batch =Batch::new();
-        let ruleset=if let Some(ruleset)=self.ruleset.clone() {ruleset} else { return Err(FilterError::InitError(String::from("failed to remove nft rules"))) };
+        let ruleset=self.ruleset.clone();
         for obj in ruleset.iter() {
             if let NfObject::ListObject(list_obj)=obj {
                 if let NfListObject::Table(_) = list_obj {batch.delete(list_obj.clone())}
@@ -95,9 +45,61 @@ impl FilterConfig for LinuxFilter<'_> {
         Ok(())
     }
 }
-
+impl LinuxFilter<'_> {
+    pub fn new<'a>(queue_num: u32, interface_name: Option<NetworkInterface>) -> Self {
+        let table=Table{family:NfFamily::IP6,name: Cow::from("rafilter"),handle:None};
+        let chain=Chain{
+            family:NfFamily::IP6,
+            table:table.name.clone(),
+            name: Cow::from("input"),
+            _type:Some(NfChainType::Filter),
+            hook:Some(NfHook::Input),
+            prio:Some(0),
+            policy:Some(NfChainPolicy::Accept),
+            ..Default::default()
+        };
+        let mut rule_expr=vec![
+            Statement::Match(Match {
+                left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(
+                    PayloadField {
+                        protocol: Cow::from("icmpv6"),
+                        field: Cow::from("type"),
+                    },
+                ))),
+                right: Expression::Number(134), // ICMPv6 Router Advertisement
+                op: Operator::EQ,
+            }),
+            Statement::Queue(nftables::stmt::Queue {
+                num: Expression::Number(queue_num),
+                flags: None,
+            }),
+        ];
+        if let Some (interface_name)=interface_name.clone() {
+            rule_expr.insert(0,Statement::Match(Match {
+                left:Expression::Named(NamedExpression::Meta(Meta{key:MetaKey::Iifname})),
+                right:Expression::String(Cow::from(interface_name.name)),
+                op: Operator::EQ,
+            }));
+        }
+        let rule=Rule {family:NfFamily::IP6,table:table.name.clone(),chain:chain.name.clone(), expr:rule_expr.into(),
+            comment:Some(Cow::from("Queue ICMPv6 Router Advertisement packets")),
+            ..Default::default()
+        };
+        let ruleset=vec![
+            NfObject::ListObject(NfListObject::Table(table)),
+            NfObject::ListObject(NfListObject::Chain(chain)),
+            NfObject::ListObject(NfListObject::Rule(rule)),
+        ];
+        Self {
+            queue_num,interface_name,ruleset
+        }
+    }
+}
 
 use nfq::{Queue, Verdict};
+use nftables::expr::{Expression, Meta, MetaKey, NamedExpression, Payload, PayloadField};
+use nftables::stmt::{Match, Operator, Statement};
+use nftables::types::{NfChainPolicy, NfChainType, NfFamily, NfHook};
 use pnet::packet::icmpv6::Icmpv6Packet;
 use pnet::packet::icmpv6::ndp::NdpOptionTypes::PrefixInformation;
 use pnet::packet::icmpv6::ndp::RouterAdvertPacket;
@@ -150,14 +152,17 @@ impl PacketProcessor for LinuxPacketProcessor {
         queue.bind(0).unwrap();
         queue.set_nonblocking(true);
         loop {
-            let mut message =queue.recv().unwrap();
-            if let Ok(result)= self.analyze_packet(message.get_payload()) {
-                message.set_verdict(if result { Verdict::Accept } else { Verdict::Drop });
-                queue.verdict(message).unwrap();
-            }
+            let message =queue.recv();
+            if let Ok(mut message)=message {
+                if let Ok(result)= self.analyze_packet(message.get_payload()) {
+                    message.set_verdict(if result { Verdict::Accept } else { Verdict::Drop });
+                    queue.verdict(message).unwrap();
+                }
+            } else { sleep(std::time::Duration::from_millis(50)); }
+
         }
 
-        // Ok(())
+        Ok(())
     }
 }
 

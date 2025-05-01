@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use ipnet::Ipv6Net;
 use pnet::datalink::{interfaces, NetworkInterface};
-use crate::backend::{LinuxFilter, LinuxPacketProcessor};
+
 // use std::net::IpAddr;
 // use ipnet::Ipv6Net;
 use crate::error::FilterError;
@@ -46,9 +46,7 @@ impl  PacketHandler<Box<dyn FilterConfig>,Box<dyn PacketProcessor>> {
         
         #[cfg(target_os = "linux")]
         let (filter_config,packet_process)={
-            let filter_config=crate::backend::LinuxFilter{
-                queue_num:0,interface_name,ruleset:None
-            };
+            let filter_config=crate::backend::LinuxFilter::new(0,interface_name);
             let packet_process=crate::backend::LinuxPacketProcessor { filter_mode, filter: filter_list };
             (Box::new(filter_config),Box::new(packet_process))
         };
