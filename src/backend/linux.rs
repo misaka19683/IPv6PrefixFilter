@@ -17,7 +17,11 @@ pub struct LinuxFilter<'a> {
 }
 impl Debug for LinuxFilter<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        f.debug_struct("LinuxFilter")
+            .field("queue_num", &self.queue_num)
+            .field("interface_name", &self.interface_name)
+            .field("ruleset", &self.ruleset)
+            .finish()
     }
 }
 
@@ -34,14 +38,14 @@ impl FilterConfig for LinuxFilter<'_> {
     }
     fn cleanup(&self) -> Result<(), FilterError> {
         let mut batch =Batch::new();
-        let ruleset=self.ruleset.clone();
+        let ruleset=&self.ruleset;
         for obj in ruleset.iter() {
             if let NfObject::ListObject(list_obj)=obj {
                 if let NfListObject::Table(_) = list_obj {batch.delete(list_obj.clone())}
             } else { return Err(FilterError::InitError(String::from("failed to delete nftable rulesets!")))}
         }
         apply_ruleset(&batch.to_nftables()).unwrap();
-        todo!("此处无法独立清除nft规则，需要修改");
+
         Ok(())
     }
 }
@@ -74,10 +78,10 @@ impl LinuxFilter<'_> {
                 flags: None,
             }),
         ];
-        if let Some (interface_name)=interface_name.clone() {
+        if let Some (interface_name)=&interface_name {
             rule_expr.insert(0,Statement::Match(Match {
                 left:Expression::Named(NamedExpression::Meta(Meta{key:MetaKey::Iifname})),
-                right:Expression::String(Cow::from(interface_name.name)),
+                right:Expression::String(Cow::from(interface_name.name.clone())),
                 op: Operator::EQ,
             }));
         }

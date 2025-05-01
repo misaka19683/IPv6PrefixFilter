@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use ipnet::Ipv6Net;
 use pnet::datalink::{interfaces, NetworkInterface};
 
