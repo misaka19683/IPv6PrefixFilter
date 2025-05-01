@@ -1,2 +1,2 @@
 pub mod traits;
-mod types;
+pub mod types;

@@ -1,26 +1,26 @@
 use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
-use std::net::IpAddr;
 use ipnet::Ipv6Net;
+use log::info;
 use nftables::batch::Batch;
 use nftables::helper::apply_ruleset;
 use nftables::schema::{NfListObject, NfObject};
 use crate::error::FilterError;
 use pnet::datalink::NetworkInterface;
-use crate::platform::traits::{FilterAction, FilterConfig, PacketProcessor};
+use crate::platform::traits::{FilterConfig, FilterMode, PacketProcessor};
 
 pub struct LinuxFilter<'a> {
-    queue_num: u32,
-    interface_name: Option<NetworkInterface>,
-    ruleset: Vec<NfObject<'a>>,
+    pub(crate) queue_num: u32,
+    pub(crate) interface_name: Option<NetworkInterface>,
+    pub(crate) ruleset: Option<Vec<NfObject<'a>>>,
 }
-impl<'a> Debug for LinuxFilter<'a> {
+impl Debug for LinuxFilter<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
 
-impl<'a> crate::platform::traits::FilterConfig for LinuxFilter<'a> {
+impl FilterConfig for LinuxFilter<'_> {
     fn init(&mut self) -> Result<(), FilterError> {
         use nftables::{
             batch::Batch,
@@ -78,57 +78,86 @@ impl<'a> crate::platform::traits::FilterConfig for LinuxFilter<'a> {
         let ruleset=create_nftables_objects(self.queue_num,self.interface_name.clone());
         let mut batch=Batch::new();
         batch.add_all(ruleset.clone());
-        self.ruleset=ruleset;
+        self.ruleset=Some(ruleset);
         apply_ruleset(&batch.to_nftables()).unwrap();
         Ok(())
     }
     fn cleanup(&self) -> Result<(), FilterError> {
         let mut batch =Batch::new();
-        for obj in self.ruleset.iter() {
+        let ruleset=if let Some(ruleset)=self.ruleset.clone() {ruleset} else { return Err(FilterError::InitError(String::from("failed to remove nft rules"))) };
+        for obj in ruleset.iter() {
             if let NfObject::ListObject(list_obj)=obj {
                 if let NfListObject::Table(_) = list_obj {batch.delete(list_obj.clone())}
             } else { return Err(FilterError::InitError(String::from("failed to delete nftable rulesets!")))}
         }
         apply_ruleset(&batch.to_nftables()).unwrap();
+        todo!("此处无法独立清除nft规则，需要修改");
         Ok(())
     }
 }
 
 
-use nfq::Queue;
+use nfq::{Queue, Verdict};
+use pnet::packet::icmpv6::Icmpv6Packet;
+use pnet::packet::icmpv6::ndp::NdpOptionTypes::PrefixInformation;
+use pnet::packet::icmpv6::ndp::RouterAdvertPacket;
+use pnet::packet::ipv6::Ipv6Packet;
+use pnet::packet::Packet;
+use crate::platform::types::ToBytes;
+
 #[derive(Debug, PartialEq)]
 pub struct LinuxPacketProcessor {
-    filter_mode:bool,
-    packet:Option<IpAddr>,
-    filter:Vec<Ipv6Net>,
-    filter_action:FilterAction
+    pub(crate) filter_mode:FilterMode,
+    pub(crate) filter:Vec<Ipv6Net>,
 }
+
 impl PacketProcessor for LinuxPacketProcessor {
     fn capture_packet(&mut self) -> Result<(), FilterError> {
         todo!()
     }
 
-    fn analyze_packet(&mut self) -> Result<(), FilterError> {
-        todo!()
+    fn analyze_packet(&mut self,data:&[u8]) -> Result<bool, FilterError> {
+        let ipv6_packet=if let Some(ipv6_packet)=Ipv6Packet::new(data) {ipv6_packet} else { return Ok(true) };
+        let icmpv6_packet=if let Some(icmpv6_packet)=Icmpv6Packet::new(ipv6_packet.payload()){icmpv6_packet} else { return Ok(true) };
+        let ra_packet=if let Some(ra_packet)=RouterAdvertPacket::new(icmpv6_packet.packet()) {ra_packet} else {return Ok(true)};
+
+        for op in ra_packet.get_options() {
+            if op.option_type !=PrefixInformation {continue;}
+
+            let option_raw=op.to_bytes();
+            let pfi=if let Some(pfi)=crate::platform::types::PrefixInformationPacket::new(&option_raw){pfi}else { continue; };
+
+            if pfi.payload().len()!=16 { continue; }
+            else {
+                let array:[u8;16]=pfi.payload().try_into().unwrap();
+                let ipv6addr=std::net::Ipv6Addr::from(array);
+                info!("Recived an IPv6 Prefix: {}", ipv6addr);
+            };
+
+            let is_prefix_in_list=self.filter.iter().any(|prefix| {prefix.addr().octets()==pfi.payload()});
+            let verdict=match (self.filter_mode,is_prefix_in_list) {
+                (false,false)=>{ Ok(true)},//黑名单模式，接受不在名单上的包
+                (true,true)=>{ Ok(true)},//白名单模式，接受在名单上的包
+                _ =>{Ok(false)},
+            };
+            return verdict;
+        }
+        Ok(true) //todo!(写好windows平台的代码后可以将这个函数搬到公共trait上去);
+    }
+
+    fn run(&mut self) -> Result<(), FilterError> {
+        let mut queue = Queue::open().map_err(|e| FilterError::InitError(e.to_string())).unwrap();
+        queue.bind(0).unwrap();
+        queue.set_nonblocking(true);
+        loop {
+            let mut message =queue.recv().unwrap();
+            if let Ok(result)= self.analyze_packet(message.get_payload()) {
+                message.set_verdict(if result { Verdict::Accept } else { Verdict::Drop });
+                queue.verdict(message).unwrap();
+            }
+        }
+
+        // Ok(())
     }
 }
 
-struct LinuxRuntime<A,B> {
-    init_module:A,
-    packet_process:B,
-}
-impl<'a> LinuxRuntime<LinuxFilter<'a>, LinuxPacketProcessor> {
-    fn process() {
-        let mut filter =LinuxFilter{
-            queue_num:0,interface_name:None,ruleset:Vec::new(),
-        };
-        filter.init().unwrap();
-        
-        let mut middle= LinuxPacketProcessor {
-            filter_mode:true,packet:None,filter:Vec::new(),filter_action:FilterAction::Pass
-        };
-        let mut queue =Queue::open().unwrap();
-        queue.bind(0).unwrap();
-        // queue.unwrap().recv()
-    }
-}
