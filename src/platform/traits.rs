@@ -20,7 +20,7 @@ pub trait PacketProcessor :Debug {
     fn filter(&self) -> &Vec<Ipv6Net>;
     fn filter_mode(&self) -> FilterMode;
 
-    fn capture_packet(&mut self) -> Result<(),FilterError>{Ok(())}
+    // fn capture_packet(&mut self) -> Result<(),FilterError>{Ok(())}
     
     fn analyze_packet(&mut self,data:&[u8]) -> Result<bool,FilterError>{
         use crate::platform::types::ToBytes;
@@ -38,13 +38,13 @@ pub trait PacketProcessor :Debug {
             else {
                 let array:[u8;16]=pfi.payload().try_into().unwrap();
                 let ipv6addr=std::net::Ipv6Addr::from(array);
-                info!("Recived an IPv6 Prefix: {}", ipv6addr);
+                info!("Received an IPv6 Prefix: {}", ipv6addr);
             };
 
             let is_prefix_in_list=self.filter().iter().any(|prefix| {prefix.addr().octets()==pfi.payload()});
             let verdict=match (self.filter_mode(),is_prefix_in_list) {
-                (false,false)=>{ Ok(true)},//黑名单模式，接受不在名单上的包
-                (true,true)=>{ Ok(true)},//白名单模式，接受在名单上的包
+                (false,false) =>{ Ok(true) },//黑名单模式，接受不在名单上的包
+                (true, true)  =>{ Ok(true) },//白名单模式，接受在名单上的包
                 _ =>{Ok(false)},
             };
             return verdict;
