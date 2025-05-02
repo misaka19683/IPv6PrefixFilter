@@ -1,15 +1,22 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use clap::Parser;
 use crate::cli::{Cli,Commands};
 use ipnet::Ipv6Net;
 use log::info;
 use crate::platform::traits::PacketHandler;
+
 mod cli;
 mod error;
 mod platform;
 mod backend;
-
+static RUNNING:AtomicBool=AtomicBool::new(true);
 fn main() {
+    ctrlc::set_handler(|| {
+        RUNNING.store(false,Ordering::SeqCst);
+        println!("\n收到中断信号，准备退出...");
+    }).unwrap();
     println!("Hello, world!");
+    
     let cli=Cli::parse();
     match cli.command { 
         Commands::Run {

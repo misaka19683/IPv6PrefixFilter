@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 use std::fmt::{Debug, Formatter};
+use std::sync::atomic::Ordering;
 use std::thread::sleep;
 use ipnet::Ipv6Net;
-use log::info;
+// use log::info;
 use nftables::batch::Batch;
 use nftables::helper::apply_ruleset;
 use nftables::schema::{Chain, NfListObject, NfObject, Rule, Table};
@@ -104,12 +105,7 @@ use nfq::{Queue, Verdict};
 use nftables::expr::{Expression, Meta, MetaKey, NamedExpression, Payload, PayloadField};
 use nftables::stmt::{Match, Operator, Statement};
 use nftables::types::{NfChainPolicy, NfChainType, NfFamily, NfHook};
-use pnet::packet::icmpv6::Icmpv6Packet;
-use pnet::packet::icmpv6::ndp::NdpOptionTypes::PrefixInformation;
-use pnet::packet::icmpv6::ndp::RouterAdvertPacket;
-use pnet::packet::ipv6::Ipv6Packet;
-use pnet::packet::Packet;
-use crate::platform::types::ToBytes;
+use crate::RUNNING;
 
 #[derive(Debug, PartialEq)]
 pub struct LinuxPacketProcessor {
@@ -118,44 +114,54 @@ pub struct LinuxPacketProcessor {
 }
 
 impl PacketProcessor for LinuxPacketProcessor {
-    fn capture_packet(&mut self) -> Result<(), FilterError> {
-        todo!()
+    fn filter(&self) -> &Vec<Ipv6Net> {
+        &self.filter
     }
 
-    fn analyze_packet(&mut self,data:&[u8]) -> Result<bool, FilterError> {
-        let ipv6_packet=if let Some(ipv6_packet)=Ipv6Packet::new(data) {ipv6_packet} else { return Ok(true) };
-        let icmpv6_packet=if let Some(icmpv6_packet)=Icmpv6Packet::new(ipv6_packet.payload()){icmpv6_packet} else { return Ok(true) };
-        let ra_packet=if let Some(ra_packet)=RouterAdvertPacket::new(icmpv6_packet.packet()) {ra_packet} else {return Ok(true)};
-
-        for op in ra_packet.get_options() {
-            if op.option_type !=PrefixInformation {continue;}
-
-            let option_raw=op.to_bytes();
-            let pfi=if let Some(pfi)=crate::platform::types::PrefixInformationPacket::new(&option_raw){pfi}else { continue; };
-
-            if pfi.payload().len()!=16 { continue; }
-            else {
-                let array:[u8;16]=pfi.payload().try_into().unwrap();
-                let ipv6addr=std::net::Ipv6Addr::from(array);
-                info!("Recived an IPv6 Prefix: {}", ipv6addr);
-            };
-
-            let is_prefix_in_list=self.filter.iter().any(|prefix| {prefix.addr().octets()==pfi.payload()});
-            let verdict=match (self.filter_mode,is_prefix_in_list) {
-                (false,false)=>{ Ok(true)},//黑名单模式，接受不在名单上的包
-                (true,true)=>{ Ok(true)},//白名单模式，接受在名单上的包
-                _ =>{Ok(false)},
-            };
-            return verdict;
-        }
-        Ok(true) //todo!(写好windows平台的代码后可以将这个函数搬到公共trait上去);
+    fn filter_mode(&self) -> FilterMode {
+        self.filter_mode
     }
+    // fn capture_packet(&mut self) -> Result<(), FilterError> {
+    //     todo!()
+    // }
+
+    // fn analyze_packet(&mut self,data:&[u8]) -> Result<bool, FilterError> {
+    //     let ipv6_packet=if let Some(ipv6_packet)=Ipv6Packet::new(data) {ipv6_packet} else { return Ok(true) };
+    //     let icmpv6_packet=if let Some(icmpv6_packet)=Icmpv6Packet::new(ipv6_packet.payload()){icmpv6_packet} else { return Ok(true) };
+    //     let ra_packet=if let Some(ra_packet)=RouterAdvertPacket::new(icmpv6_packet.packet()) {ra_packet} else {return Ok(true)};
+    //
+    //     for op in ra_packet.get_options() {
+    //         if op.option_type !=PrefixInformation {continue;}
+    //
+    //         let option_raw=op.to_bytes();
+    //         let pfi=if let Some(pfi)=crate::platform::types::PrefixInformationPacket::new(&option_raw){pfi}else { continue; };
+    //
+    //         if pfi.payload().len()!=16 { continue; }
+    //         else {
+    //             let array:[u8;16]=pfi.payload().try_into().unwrap();
+    //             let ipv6addr=std::net::Ipv6Addr::from(array);
+    //             info!("Recived an IPv6 Prefix: {}", ipv6addr);
+    //         };
+    //
+    //         let is_prefix_in_list=self.filter.iter().any(|prefix| {prefix.addr().octets()==pfi.payload()});
+    //         let verdict=match (self.filter_mode,is_prefix_in_list) {
+    //             (false,false)=>{ Ok(true)},//黑名单模式，接受不在名单上的包
+    //             (true,true)=>{ Ok(true)},//白名单模式，接受在名单上的包
+    //             _ =>{Ok(false)},
+    //         };
+    //         return verdict;
+    //     }
+    //     Ok(true) //todo!(写好windows平台的代码后可以将这个函数搬到公共trait上去);
+    // }
 
     fn run(&mut self) -> Result<(), FilterError> {
         let mut queue = Queue::open().map_err(|e| FilterError::InitError(e.to_string())).unwrap();
         queue.bind(0).unwrap();
+
         queue.set_nonblocking(true);
-        loop {
+        queue.set_fail_open(0, false).unwrap(); //非阻塞+无法接受的包丢弃
+
+        while RUNNING.load(Ordering::SeqCst) {
             let message =queue.recv();
             if let Ok(mut message)=message {
                 if let Ok(result)= self.analyze_packet(message.get_payload()) {

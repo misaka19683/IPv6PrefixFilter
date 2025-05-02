@@ -5,11 +5,18 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.37", features = ["derive"] }
+ctrlc = "3.4.6"
 ipnet = "2.11.0"
 log = "0.4.27"
-nfq = "0.2.5"
-nftables = "0.6.1"
 pnet = "0.35.0"
 pnet_macros = "0.35.0"
 pnet_macros_support = "0.35.0"
 thiserror = "2.0.12"
+
+
+[target.'cfg(target_os = "linux")'.dependencies]
+nfq = "0.2.5"
+nftables = "0.6.1"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windivert = "0.6.0"
