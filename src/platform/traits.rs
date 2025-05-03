@@ -24,19 +24,19 @@ pub trait PacketProcessor :Debug {
     
     fn analyze_packet(&mut self,data:&[u8]) -> Result<bool,FilterError>{
         use crate::platform::types::ToBytes;
-        let ipv6_packet=if let Some(ipv6_packet)=Ipv6Packet::new(data) {ipv6_packet} else { return Ok(true) };
-        let icmpv6_packet=if let Some(icmpv6_packet)=Icmpv6Packet::new(ipv6_packet.payload()){icmpv6_packet} else { return Ok(true) };
-        let ra_packet=if let Some(ra_packet)=RouterAdvertPacket::new(icmpv6_packet.packet()) {ra_packet} else {return Ok(true)};
+        let Some(ipv6_packet)=Ipv6Packet::new(data) else { return Ok(true) };
+        let Some(icmpv6_packet)=Icmpv6Packet::new(ipv6_packet.payload()) else { return Ok(true) };
+        let Some(ra_packet)=RouterAdvertPacket::new(icmpv6_packet.packet()) else { return Ok(true) };
 
         for op in ra_packet.get_options() {
-            if op.option_type !=PrefixInformation {continue;}
+            if op.option_type !=PrefixInformation {continue}
 
             let option_raw=op.to_bytes();
-            let pfi=if let Some(pfi)=crate::platform::types::PrefixInformationPacket::new(&option_raw){pfi}else { continue; };
+            let Some(pfi)=super::types::PrefixInformationPacket::new(&option_raw) else { continue };
 
-            if pfi.payload().len()!=16 { continue; }
+            if pfi.payload().len()!=16 { continue }
             else {
-                let array:[u8;16]=pfi.payload().try_into().unwrap();
+                let array:[u8;16]=pfi.payload().try_into().unwrap();//他会出什么错我不知道，不过提醒用户清理一下，仅对于linux用户
                 let ipv6addr=std::net::Ipv6Addr::from(array);
                 info!("Received an IPv6 Prefix: {}", ipv6addr);
             };
@@ -87,9 +87,9 @@ impl PacketHandler<Box<dyn FilterConfig>,Box<dyn PacketProcessor>> {
     }
 
     pub fn run(&mut self) {
-        self.filter_config.init().unwrap();
-        self.packet_process.run().unwrap();
-        self.filter_config.cleanup().expect("TODO: panic message");
+        self.filter_config.init().unwrap();//对于linux来说是在配置nft规则，如果失败，可能说明nft规则已经存在，应该提醒用户使用clear命令
+        self.packet_process.run().unwrap();//我觉得这里不应该放错误处理，也许？毕竟这是一个抽象层，谁也不知道下面传来的错误是啥。
+        self.filter_config.cleanup().expect("TODO: panic message");//对于windows，我在清理什么？
     }
     pub fn clean(&mut self) {
         self.filter_config.cleanup().unwrap();

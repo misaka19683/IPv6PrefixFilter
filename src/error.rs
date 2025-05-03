@@ -7,7 +7,7 @@ pub enum FilterError {
     InitError(String),
 
     #[error("规则冲突: {0} 已存在")]
-    RuleConflict(Ipv6Prefix),
+    RuleConflict(Ipv6Prefix),//是个好错误，可以给nft的用用。
 
     #[error("捕获超时")]
     CaptureTimeout,

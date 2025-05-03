@@ -35,6 +35,8 @@ impl FilterConfig for LinuxFilter<'_> {
         let mut batch=Batch::new();
         batch.add_all(self.ruleset.clone());
         apply_ruleset(&batch.to_nftables()).unwrap();
+        
+        //说不定你的linux没有nft，快去装一个，也可能是没有queue模块，也快去装一个，找找这两个命令，提醒用户
         Ok(())
     }
     fn cleanup(&self) -> Result<(), FilterError> {
@@ -46,6 +48,7 @@ impl FilterConfig for LinuxFilter<'_> {
             } else { return Err(FilterError::InitError(String::from("failed to delete nftable rulesets!")))}
         }
         helper::apply_ruleset(&batch.to_nftables()).unwrap();
+        //说明你试图清除nft规则失败了，也许已经被清除了？提醒用户别清了，用nft list ruleset 看看有没有这条规则
 
         Ok(())
     }
@@ -120,11 +123,14 @@ impl PacketProcessor for LinuxPacketProcessor {
 
     fn run(&mut self) -> Result<(), FilterError> {
         let mut queue = Queue::open().map_err(|e| FilterError::InitError(e.to_string()))?;
-        queue.bind(0).unwrap();
-
+        queue.bind(0).unwrap();//也可能说明上一个启动的可以在
+        //第一优先级，最有可能说明用户的上一个ipv6_prefix_filter程序没有关闭，提醒用户关闭上一个程序。并清理nft规则
+        //第二优先级，说明已经有应用程序监听了queue0 ，提醒用户把使用queue0的程序关闭，同时应当添加指定queue_num的功能，以避开其他应用程序，自动清除nft规则
+        //第三优先级，以后可以添加功能允许用户指定queue_num,这样可以同时跑很多个此程序，需同时修改nft规则的table名和或者使用同一个table，其他名称的chain
         queue.set_nonblocking(true);
         queue.set_fail_open(0, false).unwrap(); //非阻塞+无法接受的包丢弃
-
+        //第一优先级，无法想象为什么会出错，不过也许应该提醒用户把nft规则clear了
+        // 第二优先级，添加报错后自动清除nft规则
         while RUNNING.load(Ordering::SeqCst) {
             let message =queue.recv();
             match message { 
@@ -133,6 +139,8 @@ impl PacketProcessor for LinuxPacketProcessor {
                     if let Ok(result)=self.analyze_packet(msg.get_payload()) {
                         msg.set_verdict(if result { Verdict::Accept } else { Verdict::Drop });
                         queue.verdict(msg).unwrap();
+                        //我觉得这不该报错。提醒清除nft规则
+                        //自动清除nft规则
                     }
                 },
             }
