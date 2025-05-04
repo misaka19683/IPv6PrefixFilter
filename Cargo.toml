@@ -4,14 +4,21 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-clap = { version = "4.5.37", features = ["derive"] }
-ctrlc = "3.4.6"
-ipnet = "2.11.0"
-log = "0.4.27"
-pnet = "0.35.0"
-pnet_macros = "0.35.0"
-pnet_macros_support = "0.35.0"
-thiserror = "2.0.12"
+# 命令行解析和信号处理
+clap = { version = "4.5.37", features = ["derive"] } # 用于命令行参数解析
+ctrlc = "3.4.6" # 用于处理 Ctrl+C 信号
+
+# 日志记录
+log = "0.4.27" # 日志记录库
+
+# 网络相关
+ipnet = "2.11.0" # IP 网络处理
+pnet = "0.35.0" # 低级网络数据包处理
+pnet_macros = "0.35.0" # pnet 的宏支持
+pnet_macros_support = "0.35.0" # pnet 宏的支持库
+
+# 错误处理
+thiserror = "2.0.12" # 用于定义自定义错误类型
 
 
 [target.'cfg(target_os = "linux")'.dependencies]
