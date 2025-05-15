@@ -55,12 +55,12 @@ pub trait PacketProcessor :Debug {
     fn run(&mut self) -> Result<(),FilterError>;
 }
 
-pub struct PacketHandler<F,P> {
-    filter_config:F,
-    packet_process:P,
+pub struct PacketHandler {
+    filter_config: Box<dyn FilterConfig>,
+    packet_process:Box<dyn PacketProcessor>,
 }
 
-impl PacketHandler<Box<dyn FilterConfig>,Box<dyn PacketProcessor>> {
+impl PacketHandler {
     pub fn new(filter_list:Vec<Ipv6Net>, filter_mode: FilterMode, interface_name:Option<String>) ->Self {
         let interface_name= match interface_name {
             None => None,
