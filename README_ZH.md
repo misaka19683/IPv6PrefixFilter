@@ -66,13 +66,17 @@ IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64 -p 2001:db8:2::/64
 ```ini
 [Unit]
 Description=IPv6 Router Advertisement 前缀过滤器
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
 # 请根据实际路径修改 ExecStart
 ExecStart=/usr/local/bin/IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64
-Restart=always
+
+Restart=on-failure
+RestartSec=2
+
 # 运行所需的权限
 CapabilityBoundingSet=CAP_NET_ADMIN
 AmbientCapabilities=CAP_NET_ADMIN

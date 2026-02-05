@@ -134,7 +134,7 @@ pub fn process_queue(state: AppState) {
                 let data = msg.get_payload();
                 let prefixes = extract_prefixes(data);
                 
-                let verdict = if prefixes.is_empty() {
+                let verdict = if prefixes.is_empty() || state.prefixes.is_empty() {
                     Verdict::Accept
                 } else {
                     let mut all_ok = true;

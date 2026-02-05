@@ -68,12 +68,16 @@ Create a file at `/etc/systemd/system/ra-filter.service`:
 ```ini
 [Unit]
 Description=IPv6 Router Advertisement Prefix Filter
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64
-Restart=always
+
+Restart=on-failure
+RestartSec=2
+
 # Capabilities required for nftables and NFQUEUE
 CapabilityBoundingSet=CAP_NET_ADMIN
 AmbientCapabilities=CAP_NET_ADMIN
