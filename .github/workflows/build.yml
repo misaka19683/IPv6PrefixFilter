@@ -1,4 +1,4 @@
-name: Rust MSVC and MUSL Build
+name: Rust GNU and MUSL Build
 
 on:
   push:
