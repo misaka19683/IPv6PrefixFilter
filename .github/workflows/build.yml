@@ -15,7 +15,7 @@ jobs:
     steps:
       # 检出代码
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 设置 Rust 环境
       - name: Setup Rust
@@ -47,7 +47,7 @@ jobs:
 
       # 上传构建结果
       - name: Upload Windows Build Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: target/x86_64-pc-windows-msvc/release/IPv6PrefixFilter.exe
@@ -58,7 +58,7 @@ jobs:
     steps:
       # 检出代码
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 设置 Rust 环境
       - name: Setup Rust
@@ -86,7 +86,7 @@ jobs:
 
       # 上传构建结果
       - name: Upload Linux Build Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-build
           path: target/x86_64-unknown-linux-musl/release/IPv6PrefixFilter
