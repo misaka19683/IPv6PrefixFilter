@@ -62,15 +62,9 @@ jobs:
 
       # 设置 Rust 环境
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
-      # 安装 MUSL 工具链
-      - name: Install MUSL Target
-        run: rustup target add x86_64-unknown-linux-musl
+          target: x86_64-unknown-linux-musl
 
       # 安装必要的依赖
       - name: Install MUSL Tools
@@ -88,7 +82,7 @@ jobs:
       - name: Upload Linux Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-build
+          name: linux-musl-build
           path: target/x86_64-unknown-linux-musl/release/IPv6PrefixFilter
 
 
@@ -102,11 +96,9 @@ jobs:
 
       # 设置 Rust 环境（GNU 默认即可）
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          target: x86_64-unknown-linux-gnu
 
       # 安装 nfq / nftables 相关的系统依赖（用于编译/链接）
       - name: Install system dependencies
