@@ -1,119 +1,110 @@
-use clap::{Parser, Subcommand};
-use tokio;
-use env_logger;
+use clap::Parser;
 use env_logger::{Builder, Target};
 use ipnet::Ipv6Net;
 use log::{debug, info, warn};
-use std::sync::atomic::Ordering;
-// 引用自己的代码
-//#[cfg(target_os = "linux")]
-// use IPv6PrefixFilter::daemon;
-
-use IPv6PrefixFilter::{ master::*,globals::*};
+use IPv6PrefixFilter::{master::*, AppState};
 
 /// Use IPv6PrefixFilter [COMMAND] --help to see the detail help for each subcommand.
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-pub struct Args {   
-    #[command(subcommand)]
-    command: Option<Commands>,
+#[command(
+    version,
+    about = "A simple IPv6 Router Advertisement prefix filter using nftables.",
+    long_about = "A simple IPv6 Router Advertisement (RA) prefix filter for Linux that uses nftables \
+                  to intercept packets and NFQUEUE to process them in userspace.\n\n\
+                  EXAMPLES:\n\
+                  1. Allow only specific prefix on eth0:\n\
+                     IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64\n\n\
+                  2. Block a specific prefix on eth0 (Blacklist mode):\n\
+                     IPv6PrefixFilter -i eth0 -b -p 2001:db8:bad::/48\n\n\
+                  3. Allow multiple prefixes on eth0:\n\
+                     IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64 -p 2001:db8:2::/64\n\n\
+                  4. Clear rules and exit:\n\
+                     IPv6PrefixFilter --clear"
+)]
+pub struct Args {
+    /// IPv6 prefixes to allow (default) or block (if -b is set).
+    #[arg(short = 'p', long = "prefix", value_parser = clap::value_parser!(Ipv6Net))]
+    prefixes: Vec<Ipv6Net>,
 
-    // /// Specify the allowed IPv6 prefixes. Multiple prefixes can be allowed by repeating the `-p` option.
-    // #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Net))]
-    // ipv6_prefixes: Vec<Ipv6Net>,
+    /// Network interface to filter on (e.g., eth0).
+    #[arg(short = 'i', long)]
+    interface: Option<String>,
 
-    /// Display detailed runtime information. The default log level is warning. Use -v to set to info, and -vv for debug.
-    #[arg(short = 'v', long, action = clap::ArgAction::Count)]
-    verbose: u8
+    /// Enable blacklist mode: prefixes specified with `-p` will be BLOCKED.
+    #[arg(short = 'b', long)]
+    blacklist: bool,
+
+    /// Clear the nftables rules set by the program and exit.
+    #[arg(short = 'c', long)]
+    clear: bool,
+
+    /// Disable automatic setup of nftables rules.
+    #[arg(long = "no-nft")]
+    no_nft: bool,
+
+    /// Verbosity level. Use -v for info, -vv for debug.
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    verbose: u8,
 }
 
-/// 定义程序支持的命令
-#[derive(Subcommand, Debug)]
-pub enum Commands {
-    /// Run the program (in the foreground).
-    Run {
-        /// Specify the allowed IPv6 prefixes. Multiple prefixes can be allowed by repeating the `-p` option.
-        #[arg(short = 'p', long, value_parser = clap::value_parser!(Ipv6Net))]
-        ipv6_prefixs: Vec<Ipv6Net>,
-        /// Specify the wan interface.
-        #[arg(short = 'i', long)]
-        interface: Option<String>,
-        /// Enable blacklist mode. Prefixes specified with `-p` will be blocked.
-        #[arg(short = 'b', long)]
-        blacklist_mode: bool,
-        /// Disable the feature of auto set nftables rules.
-        #[arg(long = "disable-nft-autoset")]
-        disable_nft_autoset: bool
-    },
-    // 清理nftables规则
-    /// Clear the nft rules set by the program, especially when the program exits improperly without executing the cleanup process.
-    Clear,
-    /// Run as a daemon process.
-    // Daemon, //TODO: Waiting for implementation.
-    /// Print version info.
-    Version
-}
-#[tokio::main]
-async fn main() {
-    // 解析命令行参数
+fn main() {
     let args = Args::parse();
 
-    // 初始化日志记录
+    // Initialize logging
     match args.verbose {
         0 => env_logger::init(),
         1 => {
             Builder::new().filter_level(log::LevelFilter::Info).target(Target::Stdout).init();
-            info!("Logging level has been set to info.")
-        },
+            info!("Logging level set to INFO.");
+        }
         _ => {
             Builder::new().filter_level(log::LevelFilter::Debug).target(Target::Stdout).init();
-            debug!("Logging level has been set to info.")
+            debug!("Logging level set to DEBUG.");
         }
     };
-    // 根据命令执行不同操作
-    match args.command {
-        Some(Commands::Run { ipv6_prefixs, interface, blacklist_mode, disable_nft_autoset}) => {
-            debug!("Running with prefix: ");
 
-            for prefix in ipv6_prefixs.iter() {
-                add_to_container(*prefix);
-            }
+    if args.clear {
+        info!("Clearing nftables rules...");
+        if let Err(e) = delete_nftables() {
+            eprintln!("Error clearing nftables: {}", e); // 清除 nftables 规则时出错
+            std::process::exit(1);
+        }
+        println!("Nftables rules cleared successfully."); // Nftables 规则已成功清除
+        return;
+    }
+    let mut state = AppState {
+        prefixes: args.prefixes,
+        blacklist_mode: args.blacklist,
+        ..Default::default()
+    };
 
-            if let Some(interface)= interface{
-                set_interface_name(interface);
-            };
-            if blacklist_mode{BLACKLIST_MODE.store(true, Ordering::SeqCst);}
-
-            #[cfg(target_os = "linux")]
-            handle_run(disable_nft_autoset);
-            #[cfg(windows)]
-            if disable_nft_autoset{
-                warn!("The disable_nft_autoset option is not supported on Windows.");
-            }else{handle_run().await;}
-        }
-        Some(Commands::Clear) => {
-            #[cfg(target_os = "linux")]
-            warn!("Only supported on Linux.");
-            #[cfg(target_os = "linux")]
-            handle_clear(); // 传递参数给`handle_clear`
-        }
-        // TODO: Waiting for implementation
-        // Some(Commands::Daemon) => {
-        //     #[cfg(target_os = "linux")]
-        //     daemon::daemon_run().expect("Failed to start daemon."); // 启动守护进程
-        //     println!("Running as daemon.");
-        // }
-        Some(Commands::Version) => {
-            println!("Version 1.0.0");
-        }
-        _ => {
-            println!("No command provided. Use --help for help.");
+    if let Some(iface_name) = args.interface {
+        let interfaces = pnet::datalink::interfaces();
+        state.interface = interfaces.into_iter().find(|i| i.name == iface_name);
+        if state.interface.is_none() {
+            eprintln!("Interface '{}' not found.", iface_name); // 未找到接口
+            std::process::exit(1);
         }
     }
 
-    // 输出所有的IPv6前缀
-    let prefixs=get_container_data();
-    for prefix in prefixs.iter() {
-        println!("Allowed IPv6 prefix: {}", prefix);
+    if state.prefixes.is_empty() {
+        warn!("No prefixes specified. All Router Advertisements will be ACCEPTED by default.");
+    } else {
+        for prefix in &state.prefixes {
+            info!("{} prefix: {}", if state.blacklist_mode { "Blocking" } else { "Allowing" }, prefix);
+        }
     }
+
+    if args.no_nft {
+        warn!("Automatic nftables configuration disabled. Please set up rules manually.");
+    } else {
+        info!("Setting up nftables rules...");
+        setup_nftables(&state).expect("Failed to set up nftables");
+    }
+
+    info!("Starting RA filter (NFQUEUE listener)...");
+    process_queue(state);
+    
+    // Cleanup on normal exit (though process_queue currently has a loop)
+    let _ = delete_nftables();
 }
