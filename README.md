@@ -2,7 +2,7 @@
 
 [README](README.md) | [中文文档](README_ZH.md)
 
-This program is a router advertisement (RA) filter compatible with Linux and Windows that filters RA attempting to set unspecified IPv6 prefixes. Occasionally, misconfigured routers may send RAs with incorrect prefix settings, or someone may intentionally send false RAs to disrupt your network.
+This program is a router advertisement (RA) filter for Linux that filters RA attempting to set unspecified IPv6 prefixes. Occasionally, misconfigured routers may send RAs with incorrect prefix settings, or someone may intentionally send false RAs to disrupt your network.
 
 ## Development Progress
 The program is currently in a preliminary usable state.
@@ -23,53 +23,69 @@ The program is currently in a preliminary usable state.
 #### Linux
 This program uses `nftables` to intercept RA packets. Ensure your system supports `nftables` and has `libnetfilter_queue` (along with the respective `kmod`) installed.
 
-#### Windows
-Windows platforms require the installation of WinDivert. Refer to the [WinDivert Install Guide](Windivert_Install_Guide.md) for details.
 
 ### Command-Line Help
 
 Use the `-h` or `--help` parameter to get help:
 
 ```shell
-# IPV6PrefixFilter --help
-Use IPv6PrefixFilter [COMMAND] --help to see detailed help for each subcommand.
+# IPv6PrefixFilter --help
+A simple IPv6 Router Advertisement prefix filter using nftables.
 
-Usage: IPv6PrefixFilter [OPTIONS] [COMMAND]
-
-Commands:
-  run      Run the program (in the foreground)
-  clear    Clear the nft rules set by the program, especially when the program exits improperly without executing the cleanup process
-  version  Print version info
-  help     Print this message or the help of the given subcommand(s)
+Usage: IPv6PrefixFilter [OPTIONS]
 
 Options:
-  -v, --verbose...  Display detailed runtime information. The default log level is warning. Use -v to set to info, and -vv for debug
-  -h, --help        Print help
-  -V, --version     Print version
-```
-
-For each command, you can use `-h` or `--help` to get detailed help:
-
-```shell
-# IPV6PrefixFilter run --help
-Run the program (in the foreground)
-
-Usage: IPv6PrefixFilter run [OPTIONS]
-
-Options:
-  -p, --ipv6-prefixes <IPV6_PREFIXES>  Specify the allowed IPv6 prefixes. Multiple prefixes can be allowed by repeating the `-p` option
-  -i, --interface <INTERFACE>          Specify the WAN interface
-  -b, --blacklist-mode                 Enable blacklist mode. Prefixes specified with `-p` will be blocked
-      --disable-nft-autoset            Disable the feature of auto-setting nftables rules
-  -h, --help                           Print help
+  -p, --prefix <PREFIXES>     IPv6 prefixes to allow (default) or block (if -b is set)
+  -i, --interface <INTERFACE>  Network interface to filter on (e.g., eth0)
+  -b, --blacklist              Enable blacklist mode: prefixes specified with `-p` will be BLOCKED
+  -c, --clear                  Clear the nftables rules set by the program and exit
+      --no-nft                 Disable automatic setup of nftables rules
+  -v, --verbose...             Verbosity level. Use -v for info, -vv for debug
+  -h, --help                   Print help
+  -V, --version                Print version
 ```
 
 ### Examples
 
-If you want to intercept RA advertisements from the WAN interface, only allowing the prefix `FFFF:FFFF:FFFF::/48`, you can use the following command:
-
+#### 1. Allow only specific prefix on eth0
 ```shell
-IPV6PrefixFilter run -i wan -p FFFF:FFFF:FFFF::/48
+IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64
+```
+
+#### 2. Block a specific prefix on eth0 (Blacklist mode)
+```shell
+IPv6PrefixFilter -i eth0 -b -p 2001:db8:bad::/48
+```
+
+#### 3. Allow multiple prefixes on eth0
+```shell
+IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64 -p 2001:db8:2::/64
+```
+
+#### 3. Run as a Systemd Service (Recommended for persistent protection)
+Create a file at `/etc/systemd/system/ra-filter.service`:
+
+```ini
+[Unit]
+Description=IPv6 Router Advertisement Prefix Filter
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64
+Restart=always
+# Capabilities required for nftables and NFQUEUE
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start it:
+```shell
+systemctl enable ra-filter
+systemctl start ra-filter
 ```
 
 ## Build Guide
@@ -100,9 +116,4 @@ Your `cargo` may also need to be configured for proper cross-compilation:
 rustup target add x86_64-unknown-linux-musl
 ```
 
-### Building on Windows
-
-```shell
-cargo build --release --target=x86_64-pc-windows-msvc
-```
 

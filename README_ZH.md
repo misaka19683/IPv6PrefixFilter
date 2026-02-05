@@ -1,7 +1,7 @@
 # IPV6PrefixFilter
 [README](README.md) | [中文文档](README_ZH.md)
 
-本程序是一个适用于 Linux 和 Windows 的路由器通告（RA, Routher Advertisement）过滤器，可以过滤试图设置非*指定 IPv6 前缀*的 RA。有时，错误配置的路由器会发送错误的前缀设置 RA，或者有人故意发送错误的 RA 来干扰您的网络。
+本程序是一个适用于 Linux 的路由器通告（RA, Routher Advertisement）过滤器，可以过滤试图设置非*指定 IPv6 前缀*的 RA。有时，错误配置的路由器会发送错误的前缀设置 RA，或者有人故意发送错误的 RA 来干扰您的网络。
 
 ## 开发进度
 当前程序已经初步可用。
@@ -22,50 +22,69 @@
 #### Linux 
 本程序依赖 `nftables` 劫持 RA 数据包。请确保您的系统支持 `nftables`，并且安装有 `libnetfilter_queue`（以及对应的 `kmod`）。
 
-#### Windows
-Windows 平台需要安装 WinDivert。具体请参考 [Windivert Install Guide](Windivert_Install_Guide_ZH.md)
 
 ### 命令行帮助
 
 通过 `-h` 或 `--help` 参数获得帮助
+```shell
+# IPv6PrefixFilter --help
+A simple IPv6 Router Advertisement prefix filter using nftables.
 
-```
-# IPV6PrefixFilter --help
-Use IPv6PrefixFilter [COMMAND] --help to see the detail help for each subcommand
+用法: IPv6PrefixFilter [选项]
 
-Usage: IPv6PrefixFilter [OPTIONS] [COMMAND]
-
-Commands:
-  run      Run the program (in the foreground)
-  clear    Clear the nft rules set by the program, especially when the program exits improperly without executing the cleanup process
-  version  Run as a daemon process. Print version info
-  help     Print this message or the help of the given subcommand(s)
-
-Options:
-  -v, --verbose...  Display detailed runtime information. The default log level is warning. Use -v to set to info, and -vv for debug
-  -h, --help        Print help
-  -V, --version     Print version
+选项:
+  -p, --prefix <PREFIXES>     指定允许的 IPv6 前缀（默认）或要阻止的前缀（如果开启了 -b）
+  -i, --interface <INTERFACE>  指定要过滤的网络接口（如 eth0）
+  -b, --blacklist              开启黑名单模式：指定的前缀将被阻止（Drop）
+  -c, --clear                  清除由程序设置的 nftables 规则并退出
+      --no-nft                 禁用自动设置 nftables 规则
+  -v, --verbose...             显示详细运行信息。-v 为 info 级别，-vv 为 debug 级别
+  -h, --help                   显示帮助
+  -V, --version                显示版本
 ```
 
-对于每条 Command，可以单独使用 `-h` 或 `--help`。
-```
-# IPV6PrefixFilter run --help
-Run the program (in the foreground)
-
-Usage: IPv6PrefixFilter run [OPTIONS]
-
-Options:
-  -p, --ipv6-prefixs <IPV6_PREFIXS>  Specify the allowed IPv6 prefixes. Multiple prefixes can be allowed by repeating the `-p` option
-  -i, --interface <INTERFACE>        Specify the wan interface
-  -b, --blacklist-mode               Enable blacklist mode. Prefixes specified with `-p` will be blocked
-      --disable-nft-autoset          Disable the feature of auto set nftables rules
-  -h, --help                         Print help
-```
 ### 例子
 
-如果您想要拦截来自 wan 接口的 RA 通告，仅保留前缀 `FFFF:FFFF:FFFF::/48`，您可以使用如下命令
+#### 1. 仅允许 eth0 接口上的特定前缀
+```shell
+IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64
 ```
-IPV6PrefixFilter run -i wan -p FFFF:FFFF:FFFF::/48
+
+#### 2. 阻止 eth0 接口上的特定前缀（黑名单模式）
+```shell
+IPv6PrefixFilter -i eth0 -b -p 2001:db8:bad::/48
+```
+
+#### 3. 允许 eth0 接口上的多个前缀
+```shell
+IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64 -p 2001:db8:2::/64
+```
+
+#### 3. 作为 Systemd 服务运行（推荐用于长期保护）
+创建一个文件 `/etc/systemd/system/ra-filter.service`:
+
+```ini
+[Unit]
+Description=IPv6 Router Advertisement 前缀过滤器
+After=network.target
+
+[Service]
+Type=simple
+# 请根据实际路径修改 ExecStart
+ExecStart=/usr/local/bin/IPv6PrefixFilter -i eth0 -p 2001:db8:1::/64
+Restart=always
+# 运行所需的权限
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target
+```
+
+然后启用并启动服务:
+```shell
+systemctl enable ra-filter
+systemctl start ra-filter
 ```
 
 ## 编译指南
@@ -92,10 +111,4 @@ sudo apt-get install musl-tools
 
 ```shell
 rustup target add x86_64-unknown-linux-musl
-```
-
-在 Windows 构建：
-
-```shell
-cargo build --release --target=x86_64-pc-windows-msvc
 ```
