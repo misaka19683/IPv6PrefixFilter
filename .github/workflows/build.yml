@@ -9,50 +9,50 @@ on:
       - main
 
 jobs:
-  build-windows:
-    runs-on: windows-2022
+#  build-windows:
+#    runs-on: windows-2022
+#
+#    steps:
+#      # 检出代码
+#      - name: Checkout code
+#        uses: actions/checkout@v4
+#
+#      # 设置 Rust 环境
+#      - name: Setup Rust
+#        uses: actions-rs/toolchain@v1
+#        with:
+#          profile: minimal
+#          toolchain: stable-x86_64-pc-windows-msvc
+#          override: true
+#
+#      # 安装必要的构建工具 (看起来不用安装，自带MSVC2022)
+#      # - name: Install MSVC Build Tools
+#      #   run: |
+#      #     choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional"
+#
+#      # 设置环境变量
+#      - name: Set up MSVC environment
+#        run: |
+#          "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+#
+#      - name: Set WINDIVERT_PATH
+#        run: echo "WINDIVERT_PATH=${{ github.workspace }}\lib\windivert\x64" >> $env:GITHUB_ENV
+#
+#      - name: Append to LIB environment variable
+#        run: echo "LIB=%LIB%;${{ github.workspace }}\lib\npcap-sdk-1.13\Lib\x64" >> $env:GITHUB_ENV
+#
+#      # 构建项目
+#      - name: Build with Cargo
+#        run: cargo build --release --target=x86_64-pc-windows-msvc
+#
+#      # 上传构建结果
+#      - name: Upload Windows Build Artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: windows-build
+#          path: target/x86_64-pc-windows-msvc/release/IPv6PrefixFilter.exe
 
-    steps:
-      # 检出代码
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # 设置 Rust 环境
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable-x86_64-pc-windows-msvc
-          override: true
-
-      # 安装必要的构建工具 (看起来不用安装，自带MSVC2022)
-      # - name: Install MSVC Build Tools
-      #   run: |
-      #     choco install visualstudio2019buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional"
-
-      # 设置环境变量
-      - name: Set up MSVC environment
-        run: |
-          "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-
-      - name: Set WINDIVERT_PATH
-        run: echo "WINDIVERT_PATH=${{ github.workspace }}\lib\windivert\x64" >> $env:GITHUB_ENV
-
-      - name: Append to LIB environment variable
-        run: echo "LIB=%LIB%;${{ github.workspace }}\lib\npcap-sdk-1.13\Lib\x64" >> $env:GITHUB_ENV
-
-      # 构建项目
-      - name: Build with Cargo
-        run: cargo build --release --target=x86_64-pc-windows-msvc
-
-      # 上传构建结果
-      - name: Upload Windows Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: target/x86_64-pc-windows-msvc/release/IPv6PrefixFilter.exe
-
-  build-linux:
+  build-linux-musl:
     runs-on: ubuntu-22.04
 
     steps:
@@ -90,3 +90,41 @@ jobs:
         with:
           name: linux-build
           path: target/x86_64-unknown-linux-musl/release/IPv6PrefixFilter
+
+
+  build-linux-gnu:
+    runs-on: ubuntu-22.04
+
+    steps:
+      # 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 设置 Rust 环境（GNU 默认即可）
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      # 安装 nfq / nftables 相关的系统依赖（用于编译/链接）
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libnetfilter-queue-dev \
+            libmnl-dev \
+            libnftnl-dev
+
+      # 构建项目（GNU 动态链接）
+      - name: Build with Cargo (GNU)
+        run: cargo build --release
+
+      # 上传构建结果
+      - name: Upload Linux GNU Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-gnu-build
+          path: target/release/IPv6PrefixFilter
